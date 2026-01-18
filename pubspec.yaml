@@ -1,0 +1,24 @@
+name: zylo_fm
+description: ZyloFM - Aplicación de streaming de música y radio
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  just_audio: ^0.9.39
+  audio_service: ^0.18.15
+  just_audio_background: ^0.0.1-beta.13
+  rxdart: ^0.27.7
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
