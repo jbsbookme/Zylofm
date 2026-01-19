@@ -41,14 +41,20 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(params.password, 10);
 
-    // Default role for new accounts.
-    const role: Role = Role.LISTENER;
+    // PASO 8.3: if the user is creating a DJ profile at signup, mark role as DJ.
+    // Otherwise keep LISTENER as the default.
+    let finalRole: Role;
+    if (params.displayName && params.displayName.trim().length > 0) {
+      finalRole = Role.DJ;
+    } else {
+      finalRole = Role.LISTENER;
+    }
 
     const user = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
-        role,
+        role: finalRole,
         djProfile: params.displayName
           ? {
               create: {
