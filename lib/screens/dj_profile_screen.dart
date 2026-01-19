@@ -30,10 +30,7 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
   void initState() {
     super.initState();
 
-    const remoteUrl = String.fromEnvironment('ZyloContentUrl');
-    _contentFuture = AdminContentRepository(
-      remoteUrl: remoteUrl.isEmpty ? null : remoteUrl,
-    ).load();
+    _contentFuture = const AdminContentRepository().load();
 
     _enterController = AnimationController(
       vsync: this,
@@ -58,7 +55,7 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('DJ Profile'),
+        title: const Text('Perfil DJ'),
         centerTitle: true,
       ),
       body: FutureBuilder<AdminContent>(
@@ -101,7 +98,7 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
                     const SizedBox(height: 16),
                     _buildPrimaryActions(context, dj, mixes),
                     const SizedBox(height: 20),
-                    _buildSectionTitle('DJ Mixes'),
+                    _buildSectionTitle('Mixes'),
                     const SizedBox(height: 10),
                     if (mixes.isEmpty)
                       _buildInlineEmpty('Este DJ no tiene mixes publicados aún.')
@@ -141,11 +138,11 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           ),
           child: const Row(
             children: [
-              Icon(Icons.wifi_off_rounded, color: Colors.white60, size: 18),
+              Icon(Icons.error_outline, color: Colors.white60, size: 18),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'No se pudo cargar el perfil del DJ.',
+                  'No se pudo cargar el contenido del DJ.',
                   style: TextStyle(color: Colors.white60, fontSize: 12),
                 ),
               ),

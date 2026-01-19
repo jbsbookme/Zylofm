@@ -88,11 +88,10 @@ Pantalla completa con:
 - Barra de progreso (solo mixes)
 - Skip ±15 segundos
 
-## Datos Mock
+## Contenido admin (local)
 
 La app consume contenido *admin-driven* desde un JSON controlado:
 - Asset: `assets/admin/content.json`
-- Opcional: endpoint remoto con `--dart-define=ZyloContentUrl=https://.../content.json`
 
 Guía completa: ver `ADMIN_CONTENT.md`.
 

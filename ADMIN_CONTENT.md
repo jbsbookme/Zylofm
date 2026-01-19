@@ -1,21 +1,13 @@
-# Admin Content (PASO 3)
+# Admin Content (PASO 5)
 
-ZyloFM ahora consume DJs, mixes, radio y destacados desde una fuente *admin-driven*.
+ZyloFM consume DJs, mixes, radio y destacados desde una fuente *admin-driven* local.
 
 ## Fuente de contenido
 
 Por defecto se carga desde:
 - `assets/admin/content.json`
 
-Opcionalmente, puedes apuntar a un endpoint JSON (sin backend complejo) usando `--dart-define`:
-
-```bash
-flutter run --dart-define=ZyloContentUrl=https://TU_DOMINIO/content.json
-```
-
-Regla de carga:
-1) Si `ZyloContentUrl` existe y responde `200..299` con JSON válido → se usa ese contenido.
-2) Si falla (timeout / error / JSON inválido) → fallback al asset `assets/admin/content.json`.
+En PASO 5, este archivo es la **única** fuente de verdad (sin backend).
 
 ## Estructura del JSON
 
@@ -64,14 +56,6 @@ Ejemplo mínimo:
 1) Edita `assets/admin/content.json`
 2) Ejecuta `flutter pub get` (si cambiaste assets en `pubspec.yaml`)
 3) Corre la app: `flutter run`
-
-### Opción B — Publicar un JSON remoto (recomendado)
-- Sube `content.json` a un hosting simple (S3, Cloudflare R2, GitHub Pages, Netlify, Vercel, etc.)
-- Lanza la app con:
-
-```bash
-flutter run --dart-define=ZyloContentUrl=https://tu-host/content.json
-```
 
 ## Notas
 - No se toca audio/player: el JSON solo alimenta lo que se ve en Home y los URLs que se pasan al audio handler.

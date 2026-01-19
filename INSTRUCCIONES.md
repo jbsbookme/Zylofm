@@ -95,12 +95,6 @@ zylo_fm_app/
 El contenido (radio, DJs, mixes y destacados) se controla desde:
 - `assets/admin/content.json`
 
-Opcional: puedes usar un JSON remoto (hosting simple) con:
-
-```bash
-flutter run --dart-define=ZyloContentUrl=https://TU_DOMINIO/content.json
-```
-
 Guía completa: `ADMIN_CONTENT.md`.
 
 ### Cambiar tema de colores:

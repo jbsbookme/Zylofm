@@ -35,11 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _reloadContent() {
-    const remoteUrl = String.fromEnvironment('ZyloContentUrl');
     setState(() {
-      _contentFuture = AdminContentRepository(
-        remoteUrl: remoteUrl.isEmpty ? null : remoteUrl,
-      ).load();
+      _contentFuture = const AdminContentRepository().load();
       _radioOnlineFuture = null;
       _radioUrlForProbe = null;
     });
@@ -170,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _buildEmptyState(
                           loading: loading,
                           icon: Icons.library_music_outlined,
-                          text: 'No hay mixes configurados.',
+                          text: 'Aún no hay mixes publicados.',
                         ),
                       ),
                     )
@@ -208,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _buildEmptyState(
                           loading: loading,
                           icon: Icons.person_outline,
-                          text: 'No hay DJs configurados.',
+                          text: 'Aún no hay DJs en cabina.',
                         ),
                       ),
                     )
@@ -886,25 +883,15 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF1C1C28)),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.hourglass_bottom, color: Colors.white60, size: 18),
-          const SizedBox(width: 10),
-          const Expanded(
+          Icon(Icons.hourglass_bottom, color: Colors.white60, size: 18),
+          SizedBox(width: 10),
+          Expanded(
             child: Text(
-              'Próximamente más sets',
+              'Próximamente más sets.',
               style: TextStyle(color: Colors.white60, fontSize: 12),
             ),
-          ),
-          OutlinedButton(
-            onPressed: null,
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.white.withAlphaF(0.12)),
-              foregroundColor: Colors.white60,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: const Text('Próximamente más sets'),
           ),
         ],
       ),
@@ -1066,7 +1053,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Error de red. Reintentar',
+              'No se pudo cargar el contenido. Reintentar',
               style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
