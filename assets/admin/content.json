@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "radio": {
+    "title": "Radio ZyloFM",
+    "streamUrl": "https://stream.zeno.fm/0r0xa792kwzuv",
+    "coverUrl": "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=1200",
+    "tagline": "Negro total. Energía neón. 24/7.",
+    "badgeText": "RADIO • LIVE"
+  },
+  "djs": [
+    {
+      "id": "dj_luna",
+      "name": "DJ Luna",
+      "blurb": "House elegante. Neon groove.",
+      "avatarUrl": "https://images.unsplash.com/photo-1520975693411-6b87c28ad90b?w=600"
+    },
+    {
+      "id": "dj_storm",
+      "name": "DJ Storm",
+      "blurb": "Tech & bass. Drop preciso.",
+      "avatarUrl": "https://images.unsplash.com/photo-1520975916090-3105956dac38?w=600"
+    },
+    {
+      "id": "dj_zen",
+      "name": "DJ Zen",
+      "blurb": "Chill futurista. Flow nocturno.",
+      "avatarUrl": "https://images.unsplash.com/photo-1520975958221-22d2b8f6de56?w=600"
+    }
+  ],
+  "mixes": [
+    {
+      "id": "mix_001",
+      "title": "Neon Warmup",
+      "djId": "dj_luna",
+      "blurb": "Groove suave. Bajo fino.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://i.ytimg.com/vi/aA1WiiVgbqQ/maxresdefault.jpg",
+      "durationSec": 2730,
+      "featured": true
+    },
+    {
+      "id": "mix_002",
+      "title": "Bass Protocol",
+      "djId": "dj_storm",
+      "blurb": "Drop limpio. Energía 24/7.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200",
+      "durationSec": 3135,
+      "featured": true
+    },
+    {
+      "id": "mix_003",
+      "title": "Midnight Drift",
+      "djId": "dj_zen",
+      "blurb": "Chill oscuro. Brillo neón.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200",
+      "durationSec": 2325,
+      "featured": true
+    },
+    {
+      "id": "mix_004",
+      "title": "Chrome House",
+      "djId": "dj_luna",
+      "blurb": "Percusión + brillo.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1200",
+      "durationSec": 3600,
+      "featured": false
+    },
+    {
+      "id": "mix_005",
+      "title": "Storm Mode",
+      "djId": "dj_storm",
+      "blurb": "Kick duro. Cero descanso.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200",
+      "durationSec": 2850,
+      "featured": false
+    },
+    {
+      "id": "mix_006",
+      "title": "Zen Frequency",
+      "djId": "dj_zen",
+      "blurb": "Texturas + aire.",
+      "hlsUrl": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      "coverUrl": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1200",
+      "durationSec": 2460,
+      "featured": false
+    }
+  ],
+  "highlights": {
+    "heroMixId": "mix_001",
+    "featuredMixIds": ["mix_001", "mix_002", "mix_003"],
+    "featuredDjIds": ["dj_luna", "dj_storm", "dj_zen"]
+  }
+}

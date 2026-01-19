@@ -3,218 +3,181 @@
 
 import 'package:flutter/material.dart';
 import '../audio/zylo_audio_handler.dart';
+import '../content/admin_content_models.dart';
+import '../content/admin_content_repository.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/zylo_backdrop.dart';
 import 'now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
 
-/// Modelo de datos para un mix
-class MixItem {
-  final String id;
-  final String title;
-  final String djName;
-  final String blurb;
-  final String hlsUrl;
-  final String? coverUrl;
-  final int durationSec;
-
-  const MixItem({
-    required this.id,
-    required this.title,
-    required this.djName,
-    required this.blurb,
-    required this.hlsUrl,
-    this.coverUrl,
-    required this.durationSec,
-  });
-
-  String get formattedDuration {
-    final minutes = durationSec ~/ 60;
-    final seconds = durationSec % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-}
-
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final ZyloAudioHandler audioHandler;
 
   const HomeScreen({super.key, required this.audioHandler});
 
-  // Datos mock para testing
-  static const List<MixItem> _mockMixes = [
-    MixItem(
-      id: 'mix-001',
-      title: 'Neon Warmup',
-      djName: 'DJ Luna',
-      blurb: 'Groove suave. Bajo fino.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://i.ytimg.com/vi/aA1WiiVgbqQ/maxresdefault.jpg',
-      durationSec: 2730, // 45:30
-    ),
-    MixItem(
-      id: 'mix-002',
-      title: 'Bass Protocol',
-      djName: 'DJ Storm',
-      blurb: 'Drop limpio. Energía 24/7.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
-      durationSec: 3135, // 52:15
-    ),
-    MixItem(
-      id: 'mix-003',
-      title: 'Midnight Drift',
-      djName: 'DJ Zen',
-      blurb: 'Chill oscuro. Brillo neón.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
-      durationSec: 2325, // 38:45
-    ),
-    MixItem(
-      id: 'mix-004',
-      title: 'Chrome House',
-      djName: 'DJ Luna',
-      blurb: 'Percusión + brillo.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400',
-      durationSec: 3600, // 60:00
-    ),
-    MixItem(
-      id: 'mix-005',
-      title: 'Storm Mode',
-      djName: 'DJ Storm',
-      blurb: 'Kick duro. Cero descanso.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400',
-      durationSec: 2850, // 47:30
-    ),
-    MixItem(
-      id: 'mix-006',
-      title: 'Zen Frequency',
-      djName: 'DJ Zen',
-      blurb: 'Texturas + aire.',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400',
-      durationSec: 2460, // 41:00
-    ),
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-  static const Map<String, String> _djBlurbs = {
-    'DJ Luna': 'House elegante. Neon groove.',
-    'DJ Storm': 'Tech & bass. Drop preciso.',
-    'DJ Zen': 'Chill futurista. Flow nocturno.',
-  };
+class _HomeScreenState extends State<HomeScreen> {
+  late final Future<AdminContent> _contentFuture;
 
-  // URL de ejemplo para radio en vivo (stream de prueba)
-  static const String _radioStreamUrl = 'https://stream.zeno.fm/0r0xa792kwzuv';
-  static const String _radioCoverUrl = 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400';
+  ZyloAudioHandler get audioHandler => widget.audioHandler;
+
+  @override
+  void initState() {
+    super.initState();
+
+    const remoteUrl = String.fromEnvironment('ZyloContentUrl');
+    _contentFuture = AdminContentRepository(
+      remoteUrl: remoteUrl.isEmpty ? null : remoteUrl,
+    ).load();
+  }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      backgroundColor: ZyloColors.black,
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: ZyloBackdrop(intensity: 0.95),
-          ),
-          CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    child: _buildHeader(context),
+    return FutureBuilder<AdminContent>(
+      future: _contentFuture,
+      builder: (context, snapshot) {
+        final content = snapshot.data;
+        final loading = snapshot.connectionState != ConnectionState.done;
+
+        final featuredMixes = content?.featuredMixes ?? const <AdminMix>[];
+        final allDjs = content?.djs ?? const <AdminDj>[];
+        final featuredDjIds = content?.highlights.featuredDjIds ?? const <String>[];
+        final djs = featuredDjIds.isNotEmpty
+            ? allDjs.where((d) => featuredDjIds.contains(d.id)).toList(growable: false)
+            : allDjs;
+
+        return Scaffold(
+          backgroundColor: ZyloColors.black,
+          body: Stack(
+            children: [
+              const Positioned.fill(
+                child: ZyloBackdrop(intensity: 0.95),
+              ),
+              CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        child: _buildHeader(context),
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
-              // Card grande de Radio ZyloFM (Live)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-                  child: _buildLiveHeroCard(context),
-                ),
-              ),
+                  if (snapshot.hasError)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: _buildContentErrorBanner(),
+                      ),
+                    ),
 
-              // Featured Mixes horizontal
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: _buildSectionHeader(context, title: 'Mixes Destacados'),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 210,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    scrollDirection: Axis.horizontal,
-                    itemBuilder: (context, index) {
-                      final mix = _mockMixes[index % _mockMixes.length];
-                      return _buildFeaturedMixCard(context, mix);
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemCount: _mockMixes.length,
+                  // Card grande de Radio ZyloFM (Live)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+                      child: content == null
+                          ? _buildLiveHeroCardLoading(context)
+                          : _buildLiveHeroCard(context, content.radio),
+                    ),
                   ),
-                ),
-              ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
-
-              // DJs (lista simple con play rápido)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: _buildSectionHeader(context, title: 'DJs en Cabina'),
-                ),
-              ),
-
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final djName = _uniqueDjs[index];
-                    final mix = _mockMixes.firstWhere((m) => m.djName == djName);
-                    return Padding(
+                  // Featured Mixes horizontal
+                  SliverToBoxAdapter(
+                    child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                      child: _buildDjRow(context, djName: djName, mix: mix),
-                    );
-                  },
-                  childCount: _uniqueDjs.length,
-                ),
+                      child: _buildSectionHeader(context, title: 'Mixes Destacados'),
+                    ),
+                  ),
+                  if (featuredMixes.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        child: _buildEmptyState(
+                          loading: loading,
+                          text: 'No hay mixes configurados.',
+                        ),
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 210,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                          scrollDirection: Axis.horizontal,
+                          itemBuilder: (context, index) {
+                            final mix = featuredMixes[index];
+                            return _buildFeaturedMixCard(context, mix);
+                          },
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemCount: featuredMixes.length,
+                        ),
+                      ),
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+                  // DJs (lista simple con play rápido)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: _buildSectionHeader(context, title: 'DJs en Cabina'),
+                    ),
+                  ),
+
+                  if (djs.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                        child: _buildEmptyState(
+                          loading: loading,
+                          text: 'No hay DJs configurados.',
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final dj = djs[index];
+                          final mix = content?.mixForDj(dj.id);
+                          if (mix == null) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                            child: _buildDjRow(context, dj: dj, mix: mix),
+                          );
+                        },
+                        childCount: djs.length,
+                      ),
+                    ),
+
+                  // Espacio para el MiniPlayer
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: 84 + bottomInset),
+                  ),
+                ],
               ),
 
-              // Espacio para el MiniPlayer
-              SliverToBoxAdapter(
-                child: SizedBox(height: 84 + bottomInset),
+              // MiniPlayer persistente en la parte inferior
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: MiniPlayer(audioHandler: audioHandler),
               ),
             ],
           ),
-
-          // MiniPlayer persistente en la parte inferior
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: MiniPlayer(audioHandler: audioHandler),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
-
-  static List<String> get _uniqueDjs {
-    final seen = <String>{};
-    final djs = <String>[];
-    for (final m in _mockMixes) {
-      if (seen.add(m.djName)) djs.add(m.djName);
-    }
-    return djs;
-  }
-
-  static String _djBlurb(String djName) => _djBlurbs[djName] ?? 'En cabina ahora.';
 
   Widget _buildHeader(BuildContext context) {
     return Row(
@@ -283,11 +246,30 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveHeroCard(BuildContext context) {
+  Widget _buildLiveHeroCardLoading(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        height: 170,
+        decoration: BoxDecoration(
+          gradient: ZyloFx.neonSheen(opacity: 1),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLiveHeroCard(BuildContext context, AdminRadio radio) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _playRadio(context),
+        onTap: radio.streamUrl.trim().isEmpty ? null : () => _playRadio(context, radio),
         child: Container(
           height: 170,
           decoration: BoxDecoration(
@@ -298,11 +280,13 @@ class HomeScreen extends StatelessWidget {
               Positioned.fill(
                 child: Opacity(
                   opacity: 0.18,
-                  child: Image.network(
-                    _radioCoverUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+                  child: (radio.coverUrl != null && radio.coverUrl!.trim().isNotEmpty)
+                      ? Image.network(
+                          radio.coverUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
               Positioned.fill(
@@ -348,9 +332,9 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
-                                  'RADIO • LIVE',
-                                  style: TextStyle(
+                                Text(
+                                  radio.badgeText,
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
                                     fontSize: 12,
@@ -361,7 +345,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Radio ZyloFM',
+                            radio.title,
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w900,
@@ -369,7 +353,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Negro total. Energía neón. 24/7.',
+                            radio.tagline,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: Colors.white70,
                                 ),
@@ -398,7 +382,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturedMixCard(BuildContext context, MixItem mix) {
+  Widget _buildFeaturedMixCard(BuildContext context, AdminMix mix) {
     return SizedBox(
       width: 165,
       child: Card(
@@ -499,7 +483,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDjRow(BuildContext context, {required String djName, required MixItem mix}) {
+  Widget _buildDjRow(BuildContext context, {required AdminDj dj, required AdminMix mix}) {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -524,7 +508,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    djName.isNotEmpty ? djName.trim().substring(0, 1).toUpperCase() : 'D',
+                    dj.name.isNotEmpty ? dj.name.trim().substring(0, 1).toUpperCase() : 'D',
                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
                   ),
                 ),
@@ -535,7 +519,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      djName,
+                      dj.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
                           ),
@@ -544,7 +528,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _djBlurb(djName),
+                      dj.blurb.isNotEmpty ? dj.blurb : 'En cabina ahora.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -589,7 +573,16 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _playMix(BuildContext context, MixItem mix) async {
+  Future<void> _playMix(BuildContext context, AdminMix mix) async {
+    if (mix.hlsUrl.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este mix no tiene URL configurada.'),
+        ),
+      );
+      return;
+    }
+
     try {
       await audioHandler.playHlsMix(
         mixId: mix.id,
@@ -621,12 +614,21 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _playRadio(BuildContext context) async {
+  Future<void> _playRadio(BuildContext context, AdminRadio radio) async {
+    if (radio.streamUrl.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La radio no tiene streamUrl configurado.'),
+        ),
+      );
+      return;
+    }
+
     try {
       await audioHandler.playRadio(
-        title: 'Radio ZyloFM',
-        streamUrl: _radioStreamUrl,
-        coverUrl: _radioCoverUrl,
+        title: radio.title,
+        streamUrl: radio.streamUrl,
+        coverUrl: radio.coverUrl,
       );
       
       // Navegar a NowPlaying
@@ -648,5 +650,57 @@ class HomeScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  Widget _buildContentErrorBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF4D4D).withAlphaF(0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFF4D4D).withAlphaF(0.30)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.error_outline, color: Color(0xFFFF4D4D), size: 18),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No se pudo cargar contenido admin (endpoint/asset).',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required bool loading, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: ZyloColors.panel.withAlphaF(0.75),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1C1C28)),
+      ),
+      child: Row(
+        children: [
+          if (loading) ...[
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

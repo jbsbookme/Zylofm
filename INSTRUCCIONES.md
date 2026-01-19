@@ -91,14 +91,23 @@ zylo_fm_app/
 
 ## 🔧 Personalización
 
-### Conectar con tu propio backend:
-Edita `lib/screens/home_screen.dart` y reemplaza las URLs mock con las de tu API real.
+### Contenido admin (sin backend complejo)
+El contenido (radio, DJs, mixes y destacados) se controla desde:
+- `assets/admin/content.json`
+
+Opcional: puedes usar un JSON remoto (hosting simple) con:
+
+```bash
+flutter run --dart-define=ZyloContentUrl=https://TU_DOMINIO/content.json
+```
+
+Guía completa: `ADMIN_CONTENT.md`.
 
 ### Cambiar tema de colores:
 Edita `lib/main.dart` en la sección `theme` del MaterialApp.
 
-### Agregar más mixes:
-Modifica el array `mockMixes` en `lib/screens/home_screen.dart`.
+### Agregar/editar DJs y mixes:
+Edita `assets/admin/content.json` siguiendo el schema documentado en `ADMIN_CONTENT.md`.
 
 ## 🐛 Solución de Problemas
 

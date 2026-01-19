@@ -90,10 +90,11 @@ Pantalla completa con:
 
 ## Datos Mock
 
-La app incluye datos de prueba:
-- 5 mixes de ejemplo con URLs de HLS de prueba
-- Stream de radio de ejemplo
-- Imágenes de Unsplash como covers
+La app consume contenido *admin-driven* desde un JSON controlado:
+- Asset: `assets/admin/content.json`
+- Opcional: endpoint remoto con `--dart-define=ZyloContentUrl=https://.../content.json`
+
+Guía completa: ver `ADMIN_CONTENT.md`.
 
 ## Configuración de Android
 
