@@ -57,3 +57,21 @@ En un iPhone real (preferible) o simulador (limitado):
 - Home y Now Playing: contraste y legibilidad OK en brillo bajo.
 - Mini-player: no tapa safe-area; no se solapa con gestures.
 - Estado Loading/Buffering: feedback claro y consistente.
+
+## 8) Antes de App Store Review (extra)
+- Metadata en App Store Connect:
+  - Nombre, subtítulo y descripción coherentes.
+  - Keywords (si aplica) y categoría.
+  - Screenshots correctos por dispositivo.
+  - “Promotional text”/rating configurados.
+- Cumplimiento y estabilidad:
+  - La app no crashea al abrir, reproducir, bloquear/desbloquear.
+  - Background audio se mantiene si el usuario inició reproducción.
+  - No se inicia audio automáticamente al abrir (solo bajo acción del usuario).
+  - Manejo de red: si no hay conexión, mostrar error y no quedar colgada.
+- Privacidad:
+  - Si en el futuro se agrega tracking/analytics, completar App Privacy.
+  - Verificar que no se solicitan permisos innecesarios.
+- Revisión rápida de políticas:
+  - Contenido: el stream no debe tener material que infrinja derechos.
+  - Evitar claims engañosos ("24/7" solo si es real).

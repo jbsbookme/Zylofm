@@ -13,6 +13,7 @@ class MixItem {
   final String id;
   final String title;
   final String djName;
+  final String blurb;
   final String hlsUrl;
   final String? coverUrl;
   final int durationSec;
@@ -21,6 +22,7 @@ class MixItem {
     required this.id,
     required this.title,
     required this.djName,
+    required this.blurb,
     required this.hlsUrl,
     this.coverUrl,
     required this.durationSec,
@@ -42,45 +44,65 @@ class HomeScreen extends StatelessWidget {
   static const List<MixItem> _mockMixes = [
     MixItem(
       id: 'mix-001',
-      title: 'Deep House Vibes',
+      title: 'Neon Warmup',
       djName: 'DJ Luna',
+      blurb: 'Groove suave. Bajo fino.',
       hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       coverUrl: 'https://i.ytimg.com/vi/aA1WiiVgbqQ/maxresdefault.jpg',
       durationSec: 2730, // 45:30
     ),
     MixItem(
       id: 'mix-002',
-      title: 'Techno Nights',
+      title: 'Bass Protocol',
       djName: 'DJ Storm',
+      blurb: 'Drop limpio. Energía 24/7.',
       hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
       durationSec: 3135, // 52:15
     ),
     MixItem(
       id: 'mix-003',
-      title: 'Chill Beats',
+      title: 'Midnight Drift',
       djName: 'DJ Zen',
+      blurb: 'Chill oscuro. Brillo neón.',
       hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
       durationSec: 2325, // 38:45
     ),
     MixItem(
       id: 'mix-004',
-      title: 'Progressive Journey',
-      djName: 'DJ Nova',
+      title: 'Chrome House',
+      djName: 'DJ Luna',
+      blurb: 'Percusión + brillo.',
       hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       coverUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400',
       durationSec: 3600, // 60:00
     ),
     MixItem(
       id: 'mix-005',
-      title: 'Sunset Session',
-      djName: 'DJ Aurora',
+      title: 'Storm Mode',
+      djName: 'DJ Storm',
+      blurb: 'Kick duro. Cero descanso.',
       hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400',
       durationSec: 2850, // 47:30
     ),
+    MixItem(
+      id: 'mix-006',
+      title: 'Zen Frequency',
+      djName: 'DJ Zen',
+      blurb: 'Texturas + aire.',
+      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400',
+      durationSec: 2460, // 41:00
+    ),
   ];
+
+  static const Map<String, String> _djBlurbs = {
+    'DJ Luna': 'House elegante. Neon groove.',
+    'DJ Storm': 'Tech & bass. Drop preciso.',
+    'DJ Zen': 'Chill futurista. Flow nocturno.',
+  };
 
   // URL de ejemplo para radio en vivo (stream de prueba)
   static const String _radioStreamUrl = 'https://stream.zeno.fm/0r0xa792kwzuv';
@@ -191,6 +213,8 @@ class HomeScreen extends StatelessWidget {
     }
     return djs;
   }
+
+  static String _djBlurb(String djName) => _djBlurbs[djName] ?? 'En cabina ahora.';
 
   Widget _buildHeader(BuildContext context) {
     return Row(
@@ -442,6 +466,13 @@ class HomeScreen extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 4),
+                    Text(
+                      mix.blurb,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                    ),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -513,8 +544,15 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      mix.title,
+                      _djBlurb(djName),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      mix.title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
