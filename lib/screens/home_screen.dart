@@ -2,6 +2,7 @@
 // Muestra la lista de mixes y acceso a radio en vivo
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../audio/zylo_audio_handler.dart';
 import '../content/admin_content_models.dart';
 import '../content/admin_content_repository.dart';
@@ -20,18 +21,59 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final Future<AdminContent> _contentFuture;
+  late Future<AdminContent> _contentFuture;
+  Future<bool>? _radioOnlineFuture;
+  String? _radioUrlForProbe;
 
   ZyloAudioHandler get audioHandler => widget.audioHandler;
 
   @override
   void initState() {
     super.initState();
+    _reloadContent();
+  }
 
+  void _reloadContent() {
     const remoteUrl = String.fromEnvironment('ZyloContentUrl');
-    _contentFuture = AdminContentRepository(
-      remoteUrl: remoteUrl.isEmpty ? null : remoteUrl,
-    ).load();
+    setState(() {
+      _contentFuture = AdminContentRepository(
+        remoteUrl: remoteUrl.isEmpty ? null : remoteUrl,
+      ).load();
+      _radioOnlineFuture = null;
+      _radioUrlForProbe = null;
+    });
+  }
+
+  Future<bool> _probeRadioOnline(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return false;
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) return false;
+
+    final client = http.Client();
+    try {
+      // Prefer HEAD to avoid downloading an endless stream.
+      final headReq = http.Request('HEAD', uri);
+      final headResp = await client.send(headReq).timeout(const Duration(seconds: 3));
+      if (headResp.statusCode >= 200 && headResp.statusCode < 400) {
+        return true;
+      }
+    } catch (_) {
+      // Some streaming servers reject HEAD; fall back to a tiny ranged GET.
+    }
+
+    try {
+      final getReq = http.Request('GET', uri);
+      getReq.headers['Range'] = 'bytes=0-0';
+      final getResp = await client.send(getReq).timeout(const Duration(seconds: 3));
+      await getResp.stream.drain();
+      return getResp.statusCode >= 200 && getResp.statusCode < 400;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close();
+    }
   }
 
   @override
@@ -44,12 +86,26 @@ class _HomeScreenState extends State<HomeScreen> {
         final content = snapshot.data;
         final loading = snapshot.connectionState != ConnectionState.done;
 
-        final featuredMixes = content?.featuredMixes ?? const <AdminMix>[];
+        final featuredMixesAll = content?.featuredMixes ?? const <AdminMix>[];
+        final featuredMixes = featuredMixesAll.length > 7
+            ? featuredMixesAll.take(7).toList(growable: false)
+            : featuredMixesAll;
+
+        final newSets = content == null
+            ? const <AdminMix>[]
+            : content.mixes.where((m) => !m.featured).toList(growable: false);
         final allDjs = content?.djs ?? const <AdminDj>[];
         final featuredDjIds = content?.highlights.featuredDjIds ?? const <String>[];
         final djs = featuredDjIds.isNotEmpty
             ? allDjs.where((d) => featuredDjIds.contains(d.id)).toList(growable: false)
             : allDjs;
+
+        if (content != null && content.radio.streamUrl.trim().isNotEmpty) {
+          if (_radioUrlForProbe != content.radio.streamUrl) {
+            _radioUrlForProbe = content.radio.streamUrl;
+            _radioOnlineFuture = _probeRadioOnline(content.radio.streamUrl);
+          }
+        }
 
         return Scaffold(
           backgroundColor: ZyloColors.black,
@@ -74,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: _buildContentErrorBanner(),
+                        child: _buildContentErrorBanner(onRetry: _reloadContent),
                       ),
                     ),
 
@@ -84,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
                       child: content == null
                           ? _buildLiveHeroCardLoading(context)
-                          : _buildLiveHeroCard(context, content.radio),
+                          : _buildLiveHeroCard(context, content.radio, onlineFuture: _radioOnlineFuture),
                     ),
                   ),
 
@@ -101,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                         child: _buildEmptyState(
                           loading: loading,
+                          icon: Icons.library_music_outlined,
                           text: 'No hay mixes configurados.',
                         ),
                       ),
@@ -138,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: _buildEmptyState(
                           loading: loading,
+                          icon: Icons.person_outline,
                           text: 'No hay DJs configurados.',
                         ),
                       ),
@@ -151,10 +209,40 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (mix == null) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                            child: _buildDjRow(context, dj: dj, mix: mix),
+                            child: _buildDjCard(context, dj: dj, mix: mix),
                           );
                         },
                         childCount: djs.length,
+                      ),
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+                  // Nuevos Sets (opcional)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: _buildSectionHeader(context, title: 'Nuevos Sets'),
+                    ),
+                  ),
+                  if (newSets.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                        child: _buildComingSoonSets(),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final mix = newSets[index];
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                            child: _buildNewSetRow(context, mix),
+                          );
+                        },
+                        childCount: newSets.length > 6 ? 6 : newSets.length,
                       ),
                     ),
 
@@ -265,7 +353,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildLiveHeroCard(BuildContext context, AdminRadio radio) {
+  Widget _buildLiveHeroCard(
+    BuildContext context,
+    AdminRadio radio, {
+    required Future<bool>? onlineFuture,
+  }) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -313,47 +405,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: ZyloColors.liveRed.withAlphaF(0.18),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: ZyloColors.liveRed.withAlphaF(0.35)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: ZyloColors.liveRed,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  radio.badgeText,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _buildRadioBadge(onlineFuture: onlineFuture, enabled: radio.streamUrl.trim().isNotEmpty),
                           const SizedBox(height: 12),
                           Text(
-                            radio.title,
+                            '${radio.title} — ${radio.tagline}',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontSize: 26,
+                                  fontSize: 24,
                                   fontWeight: FontWeight.w900,
                                 ),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            radio.tagline,
+                            'Toca para escuchar ahora',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: Colors.white70,
                                 ),
@@ -368,7 +431,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: ZyloColors.zyloYellow,
-                        boxShadow: ZyloFx.glow(ZyloColors.zyloYellow),
+                        boxShadow: [
+                          ...ZyloFx.glow(ZyloColors.zyloYellow, blur: 26, spread: 0.6),
+                          ...ZyloFx.glow(ZyloColors.zyloYellow, blur: 14),
+                        ],
                       ),
                       child: const Icon(Icons.play_arrow_rounded, size: 36, color: Colors.black),
                     ),
@@ -378,6 +444,108 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRadioBadge({required Future<bool>? onlineFuture, required bool enabled}) {
+    if (!enabled) {
+      return _badgePill(
+        label: 'OFFLINE',
+        dotColor: ZyloColors.zyloYellow.withAlphaF(0.55),
+        borderColor: ZyloColors.zyloYellow.withAlphaF(0.20),
+        fillColor: ZyloColors.zyloYellow.withAlphaF(0.08),
+        textColor: Colors.white70,
+        shadowColor: ZyloColors.zyloYellow.withAlphaF(0.10),
+      );
+    }
+
+    if (onlineFuture == null) {
+      return _badgePill(
+        label: 'LIVE',
+        dotColor: ZyloColors.zyloYellow,
+        borderColor: ZyloColors.zyloYellow.withAlphaF(0.45),
+        fillColor: ZyloColors.zyloYellow.withAlphaF(0.10),
+        textColor: Colors.white,
+        shadowColor: ZyloColors.zyloYellow.withAlphaF(0.18),
+      );
+    }
+
+    return FutureBuilder<bool>(
+      future: onlineFuture,
+      builder: (context, snapshot) {
+        final online = snapshot.data;
+        final showOffline = online == false;
+
+        return _badgePill(
+          label: showOffline ? 'OFFLINE' : 'LIVE',
+          dotColor: showOffline ? ZyloColors.zyloYellow.withAlphaF(0.55) : ZyloColors.zyloYellow,
+          borderColor: showOffline
+              ? ZyloColors.zyloYellow.withAlphaF(0.20)
+              : ZyloColors.zyloYellow.withAlphaF(0.55),
+          fillColor: showOffline
+              ? ZyloColors.zyloYellow.withAlphaF(0.08)
+              : ZyloColors.zyloYellow.withAlphaF(0.12),
+          textColor: showOffline ? Colors.white70 : Colors.white,
+          shadowColor: showOffline
+              ? ZyloColors.zyloYellow.withAlphaF(0.10)
+              : ZyloColors.zyloYellow.withAlphaF(0.22),
+        );
+      },
+    );
+  }
+
+  Widget _badgePill({
+    required String label,
+    required Color dotColor,
+    required Color borderColor,
+    required Color fillColor,
+    required Color textColor,
+    required Color shadowColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: fillColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: dotColor.withAlphaF(0.24),
+                  blurRadius: 10,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.9,
+              fontSize: 12,
+              color: textColor,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -406,6 +574,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Positioned.fill(
                       child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.black.withAlphaF(0.55),
+                              Colors.black.withAlphaF(0.25),
+                              Colors.black.withAlphaF(0.70),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
@@ -418,6 +601,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
+                    ),
+                    Positioned(
+                      left: 10,
+                      right: 10,
+                      bottom: 10,
+                      child: _buildCoverText(mix.djName, mix.title),
                     ),
                     Positioned(
                       right: 10,
@@ -483,36 +672,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDjRow(BuildContext context, {required AdminDj dj, required AdminMix mix}) {
+  Widget _buildDjCard(BuildContext context, {required AdminDj dj, required AdminMix mix}) {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => _playMix(context, mix),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: LinearGradient(
-                    colors: [
-                      ZyloColors.electricBlue.withAlphaF(0.35),
-                      ZyloColors.neonGreen.withAlphaF(0.18),
-                      ZyloColors.zyloYellow.withAlphaF(0.22),
-                    ],
-                  ),
-                  boxShadow: ZyloFx.glow(ZyloColors.electricBlue, blur: 16),
-                ),
-                child: Center(
-                  child: Text(
-                    dj.name.isNotEmpty ? dj.name.trim().substring(0, 1).toUpperCase() : 'D',
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                  ),
-                ),
-              ),
+              _buildDjAvatar(dj),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -533,26 +702,220 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            mix.title,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ZyloColors.panel2,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0xFF252535)),
+                          ),
+                          child: Text(
+                            mix.formattedDuration,
+                            style: const TextStyle(fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ZyloColors.zyloYellow.withAlphaF(0.16),
+                  border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.35)),
+                  boxShadow: ZyloFx.glow(ZyloColors.zyloYellow, blur: 18),
+                ),
+                child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDjAvatar(AdminDj dj) {
+    final fallbackLetter = dj.name.isNotEmpty ? dj.name.trim().substring(0, 1).toUpperCase() : 'D';
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: ZyloColors.panel2,
+        border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.35), width: 1),
+        boxShadow: ZyloFx.glow(ZyloColors.zyloYellow, blur: 14),
+      ),
+      child: ClipOval(
+        child: dj.avatarUrl != null && dj.avatarUrl!.trim().isNotEmpty
+            ? Image.network(
+                dj.avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _djAvatarFallback(fallbackLetter),
+              )
+            : _djAvatarFallback(fallbackLetter),
+      ),
+    );
+  }
+
+  Widget _djAvatarFallback(String letter) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.black,
+            ZyloColors.zyloYellow.withAlphaF(0.18),
+            Colors.black,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          letter,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoverText(String djName, String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withAlphaF(0.72),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: ZyloColors.zyloYellow.withAlphaF(0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            djName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+              color: ZyloColors.zyloYellow,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComingSoonSets() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: ZyloColors.panel.withAlphaF(0.75),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1C1C28)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_bottom, color: Colors.white60, size: 18),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Próximamente más sets',
+              style: TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+          ),
+          OutlinedButton(
+            onPressed: null,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.white.withAlphaF(0.12)),
+              foregroundColor: Colors.white60,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Próximamente más sets'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewSetRow(BuildContext context, AdminMix mix) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _playMix(context, mix),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: ZyloColors.panel2,
+                  border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.20)),
+                ),
+                child: const Icon(Icons.music_note, color: Colors.white60, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
                       mix.title,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      mix.djName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: ZyloColors.panel2,
-                  border: Border.all(color: const Color(0xFF252535)),
-                ),
-                child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
-              ),
+              const SizedBox(width: 10),
+              const Icon(Icons.chevron_right, color: Colors.white38),
             ],
           ),
         ),
@@ -652,7 +1015,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildContentErrorBanner() {
+  Widget _buildContentErrorBanner({required VoidCallback onRetry}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -660,22 +1023,28 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFF4D4D).withAlphaF(0.30)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.error_outline, color: Color(0xFFFF4D4D), size: 18),
-          SizedBox(width: 10),
-          Expanded(
+          const Icon(Icons.error_outline, color: Color(0xFFFF4D4D), size: 18),
+          const SizedBox(width: 10),
+          const Expanded(
             child: Text(
-              'No se pudo cargar contenido admin (endpoint/asset).',
+              'Error de red. Reintentar',
               style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: ZyloColors.zyloYellow),
+            child: const Text('Reintentar'),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState({required bool loading, required String text}) {
+  Widget _buildEmptyState({required bool loading, required IconData icon, required String text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
@@ -691,6 +1060,9 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
+            const SizedBox(width: 10),
+          ] else ...[
+            Icon(icon, color: Colors.white60, size: 18),
             const SizedBox(width: 10),
           ],
           Expanded(
