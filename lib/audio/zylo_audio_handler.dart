@@ -170,12 +170,15 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       id: mixId,
       title: title,
       artist: djName,
+      album: 'ZyloFM Mix',
+      genre: 'Mix',
       artUri: coverUrl != null ? Uri.parse(coverUrl) : null,
       duration: durationSec != null ? Duration(seconds: durationSec) : null,
       extras: {
         'type': 'mix',
         'hlsUrl': hlsUrl,
         'isLive': false,
+        'djName': djName,
       },
     ));
 
@@ -206,12 +209,15 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     mediaItem.add(MediaItem(
       id: 'radio_live',
       title: title,
-      artist: 'Radio en Vivo',
+      artist: 'ZyloFM',
+      album: 'EN VIVO',
+      genre: 'Radio',
       artUri: coverUrl != null ? Uri.parse(coverUrl) : null,
       extras: {
         'type': 'radio',
         'streamUrl': streamUrl,
         'isLive': true,
+        'station': title,
       },
     ));
 
@@ -279,20 +285,34 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   /// Broadcast del estado al sistema para controles de lockscreen
   void _broadcastPlaybackState(PlaybackEvent event) {
     final playing = _player.playing;
+    final isLive = _contentType.value == ZyloContentType.radio;
+
+    final controls = isLive
+        ? <MediaControl>[
+            playing ? MediaControl.pause : MediaControl.play,
+            MediaControl.stop,
+          ]
+        : <MediaControl>[
+            MediaControl.rewind,
+            playing ? MediaControl.pause : MediaControl.play,
+            MediaControl.stop,
+            MediaControl.fastForward,
+          ];
+
+    final systemActions = isLive
+        ? const <MediaAction>{}
+        : const <MediaAction>{
+            MediaAction.seek,
+            MediaAction.seekForward,
+            MediaAction.seekBackward,
+          };
+
+    final compact = isLive ? const [0, 1] : const [0, 1, 3];
     
     playbackState.add(playbackState.value.copyWith(
-      controls: [
-        MediaControl.rewind,
-        playing ? MediaControl.pause : MediaControl.play,
-        MediaControl.stop,
-        MediaControl.fastForward,
-      ],
-      systemActions: const {
-        MediaAction.seek,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
-      },
-      androidCompactActionIndices: const [0, 1, 3],
+      controls: controls,
+      systemActions: systemActions,
+      androidCompactActionIndices: compact,
       processingState: _mapProcessingState(_player.processingState),
       playing: playing,
       updatePosition: _player.position,
