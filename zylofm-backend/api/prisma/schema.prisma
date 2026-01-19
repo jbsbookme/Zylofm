@@ -20,12 +20,25 @@ enum Role {
   LISTENER
 }
 
+// Mix lifecycle.
+enum MixStatus {
+  DRAFT
+  PUBLISHED
+  TAKEDOWN
+}
+
+enum MixVisibility {
+  PUBLIC
+  UNLISTED
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
   passwordHash String
   role         Role       @default(LISTENER)
   djProfile    DjProfile?
+  mixes        Mix[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -40,9 +53,30 @@ model DjProfile {
   bio         String  @default("")
   location    String?
 
+  // PASO 8.4: DJs must be approved to publish mixes.
+  approved Boolean @default(false)
+
   // Postgres supports string arrays; keep it lightweight.
   genres String[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Mix {
+  id          String        @id @default(cuid())
+  title       String
+  description String        @default("")
+
+  // Owner of this mix (must be a DJ user).
+  djUserId String
+  djUser   User          @relation(fields: [djUserId], references: [id], onDelete: Cascade)
+
+  status     MixStatus     @default(DRAFT)
+  visibility MixVisibility @default(PUBLIC)
+
+  createdAt DateTime @default(now())
+
+  @@index([djUserId])
+  @@index([status, visibility, createdAt])
 }
