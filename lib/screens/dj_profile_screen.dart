@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../audio/zylo_audio_handler.dart';
 import '../content/admin_content_models.dart';
@@ -137,6 +138,10 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
                       _buildEmptySets()
                     else
                       _buildMixGallery(context, mixes),
+                    const SizedBox(height: 18),
+                    _buildSectionTitle('Redes'),
+                    const SizedBox(height: 10),
+                    _buildSocialRow(context, dj),
                   ],
                 ),
               ),
@@ -145,6 +150,104 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
         },
       ),
     );
+  }
+
+  Widget _buildSocialRow(BuildContext context, AdminDj dj) {
+    return Row(
+      children: [
+        _socialIcon(
+          context,
+          label: 'Instagram',
+          icon: Icons.camera_alt_rounded,
+          url: dj.instagramUrl,
+        ),
+        const SizedBox(width: 10),
+        _socialIcon(
+          context,
+          label: 'TikTok',
+          icon: Icons.music_video_rounded,
+          url: dj.tiktokUrl,
+        ),
+        const SizedBox(width: 10),
+        _socialIcon(
+          context,
+          label: 'SoundCloud',
+          icon: Icons.cloud_rounded,
+          url: dj.soundcloudUrl,
+        ),
+        const SizedBox(width: 10),
+        _socialIcon(
+          context,
+          label: 'YouTube',
+          icon: Icons.play_circle_fill_rounded,
+          url: dj.youtubeUrl,
+        ),
+      ],
+    );
+  }
+
+  Widget _socialIcon(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required String? url,
+  }) {
+    final trimmed = url?.trim() ?? '';
+    final enabled = trimmed.isNotEmpty;
+
+    final fg = enabled ? Colors.white70 : Colors.white24;
+    final border = enabled ? _djRed.withAlphaF(0.26) : const Color(0xFF1C1C28);
+
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: enabled ? () => _openExternalUrl(context, trimmed) : null,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: ZyloColors.panel.withAlphaF(0.75),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border),
+          ),
+          child: Icon(icon, color: fg, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Uri? _parseExternalUri(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final hasScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://');
+    final normalized = hasScheme ? trimmed : 'https://$trimmed';
+    return Uri.tryParse(normalized);
+  }
+
+  Future<void> _openExternalUrl(BuildContext context, String url) async {
+    final uri = _parseExternalUri(url);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link inválido.')),
+      );
+      return;
+    }
+
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el link.')),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el link: $e')),
+      );
+    }
   }
 
   Widget _buildSkeletonPage(BuildContext context) {

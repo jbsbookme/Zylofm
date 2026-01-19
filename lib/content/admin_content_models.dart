@@ -37,22 +37,40 @@ class AdminDj {
   final String name;
   final String blurb;
   final String? avatarUrl;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? soundcloudUrl;
+  final String? youtubeUrl;
 
   const AdminDj({
     required this.id,
     required this.name,
     required this.blurb,
     this.avatarUrl,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.soundcloudUrl,
+    this.youtubeUrl,
   });
 
   factory AdminDj.fromJson(Map<String, dynamic> json) {
     final id = (json['id'] as String? ?? '').trim();
     final name = (json['name'] as String? ?? '').trim();
+
+    String? optUrl(String key) {
+      final raw = (json[key] as String?)?.trim();
+      return (raw != null && raw.isNotEmpty) ? raw : null;
+    }
+
     return AdminDj(
       id: id.isNotEmpty ? id : name.toLowerCase().replaceAll(' ', '_'),
       name: name.isNotEmpty ? name : 'DJ',
       blurb: (json['blurb'] as String?)?.trim() ?? '',
       avatarUrl: (json['avatarUrl'] as String?)?.trim(),
+      instagramUrl: optUrl('instagramUrl'),
+      tiktokUrl: optUrl('tiktokUrl'),
+      soundcloudUrl: optUrl('soundcloudUrl'),
+      youtubeUrl: optUrl('youtubeUrl'),
     );
   }
 }
