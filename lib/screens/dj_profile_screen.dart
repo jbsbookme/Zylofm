@@ -26,7 +26,6 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
   late final AnimationController _enterController;
 
   double _scrollOffset = 0;
-  bool _filterInitialized = false;
   _SetsFilter _setsFilter = _SetsFilter.all;
 
   static const Color _djRed = Color(0xFFFF3B30);
@@ -94,22 +93,6 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
 
           final latestSets = resolveIds(dj.latestMixIds);
           final popularSets = resolveIds(dj.popularMixIds);
-
-          if (!_filterInitialized) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              setState(() {
-                _filterInitialized = true;
-                if (latestSets.isNotEmpty) {
-                  _setsFilter = _SetsFilter.latest;
-                } else if (popularSets.isNotEmpty) {
-                  _setsFilter = _SetsFilter.popular;
-                } else {
-                  _setsFilter = _SetsFilter.all;
-                }
-              });
-            });
-          }
 
           final hasCurated = latestSets.isNotEmpty || popularSets.isNotEmpty;
 
