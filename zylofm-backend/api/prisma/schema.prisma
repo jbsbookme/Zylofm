@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  // Standard Prisma Client output so imports work via `@prisma/client`.
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Roles for API authorization.
+enum Role {
+  ADMIN
+  DJ
+  LISTENER
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(LISTENER)
+  djProfile    DjProfile?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model DjProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Public-facing profile fields.
+  displayName String
+  bio         String  @default("")
+  location    String?
+
+  // Postgres supports string arrays; keep it lightweight.
+  genres String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
