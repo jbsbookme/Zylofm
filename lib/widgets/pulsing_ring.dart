@@ -43,6 +43,7 @@ class _PulsingRingState extends State<PulsingRing> with SingleTickerProviderStat
       _controller.repeat();
     } else if (!widget.isActive && _controller.isAnimating) {
       _controller.stop();
+      _controller.value = 0;
     }
   }
 
@@ -61,14 +62,16 @@ class _PulsingRingState extends State<PulsingRing> with SingleTickerProviderStat
       builder: (context, _) {
         final t = _controller.value;
         final p = (math.sin(t * math.pi * 2) + 1) / 2; // 0..1
-        final scale = 1.0 + (p * 0.08);
+        final ringScale = 1.0 + (p * 0.08);
+        final childScale = 1.0 + (p * 0.03);
         final opacity = 0.22 + ((1 - p) * 0.18);
+        final shadowAlpha = (0.22 + (p * 0.18)) * 0.75;
 
         return Stack(
           alignment: Alignment.center,
           children: [
             Transform.scale(
-              scale: scale,
+              scale: ringScale,
               child: Container(
                 width: widget.size + 18,
                 height: widget.size + 18,
@@ -85,7 +88,25 @@ class _PulsingRingState extends State<PulsingRing> with SingleTickerProviderStat
                 ),
               ),
             ),
-            widget.child,
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.color.withValues(alpha: shadowAlpha),
+                    blurRadius: 28 + (p * 10),
+                    spreadRadius: 0.5 + (p * 1.0),
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+            ),
+            Transform.scale(
+              scale: childScale,
+              child: widget.child,
+            ),
           ],
         );
       },

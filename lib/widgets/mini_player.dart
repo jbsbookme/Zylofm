@@ -6,6 +6,7 @@ import 'package:audio_service/audio_service.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../screens/now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
+import 'blinking_live_badge.dart';
 import 'equalizer_bars.dart';
 import 'pulsing_ring.dart';
 
@@ -170,47 +171,42 @@ class MiniPlayer extends StatelessWidget {
   }
 
   Widget _buildTextBlock(BuildContext context, MediaItem mediaItem) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          mediaItem.title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 3),
-        Row(
+    return StreamBuilder<ZyloContentType>(
+      stream: audioHandler.contentTypeStream,
+      builder: (context, typeSnapshot) {
+        final type = typeSnapshot.data ?? ZyloContentType.none;
+        final showLive = type == ZyloContentType.radio;
+
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (mediaItem.extras?['isLive'] == true) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: ZyloColors.liveRed.withAlphaF(0.18),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: ZyloColors.liveRed.withAlphaF(0.35)),
+            Text(
+              mediaItem.title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 3),
+            Row(
+              children: [
+                BlinkingLiveBadge(isActive: showLive),
+                if (showLive) const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    mediaItem.artist ?? '—',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                child: const Text(
-                  'LIVE',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.7),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                mediaItem.artist ?? '—',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -252,9 +248,11 @@ class MiniPlayer extends StatelessWidget {
     final isLoading = state == ZyloPlayerState.loading || 
                       state == ZyloPlayerState.buffering;
 
+    final glowColor = isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue;
+
     return PulsingRing(
       isActive: isPlaying && !isLoading,
-      color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+      color: glowColor,
       size: 46,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -263,8 +261,11 @@ class MiniPlayer extends StatelessWidget {
         height: 46,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
-          boxShadow: ZyloFx.glow(isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue),
+          color: glowColor,
+          boxShadow: [
+            ...ZyloFx.glow(glowColor, blur: isPlaying ? 28 : 18, spread: isPlaying ? 0.8 : 0),
+            ...ZyloFx.glow(glowColor, blur: isPlaying ? 14 : 10),
+          ],
         ),
         child: IconButton(
           icon: Icon(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../theme/zylo_theme.dart';
+import '../widgets/animated_cover_art.dart';
 import '../widgets/pulsing_ring.dart';
 import '../widgets/zylo_backdrop.dart';
 
@@ -74,33 +75,43 @@ class NowPlayingScreen extends StatelessWidget {
       builder: (context, snapshot) {
         final mediaItem = snapshot.data;
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          width: 320,
-          height: 320,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: [
-              ...ZyloFx.glow(ZyloColors.electricBlue, blur: 34),
-              ...ZyloFx.glow(ZyloColors.zyloYellow, blur: 28),
-              BoxShadow(
-                color: Colors.black.withAlphaF(0.65),
-                blurRadius: 40,
-                offset: const Offset(0, 22),
+        return StreamBuilder<ZyloPlayerState>(
+          stream: audioHandler.playerStateStream,
+          builder: (context, stateSnapshot) {
+            final state = stateSnapshot.data ?? ZyloPlayerState.idle;
+            final isPlaying = state == ZyloPlayerState.playing;
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                boxShadow: [
+                  ...ZyloFx.glow(ZyloColors.electricBlue, blur: 34),
+                  ...ZyloFx.glow(ZyloColors.zyloYellow, blur: isPlaying ? 42 : 28, spread: isPlaying ? 1.2 : 0),
+                  BoxShadow(
+                    color: Colors.black.withAlphaF(0.65),
+                    blurRadius: 40,
+                    offset: const Offset(0, 22),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
-            child: mediaItem?.artUri != null
-                ? Image.network(
-                    mediaItem!.artUri.toString(),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderCover(),
-                  )
-                : _buildPlaceholderCover(),
-          ),
+              child: AnimatedCoverArt(
+                isPlaying: isPlaying,
+                size: 320,
+                borderRadius: BorderRadius.circular(26),
+                child: mediaItem?.artUri != null
+                    ? Image.network(
+                        mediaItem!.artUri.toString(),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderCover(),
+                      )
+                    : _buildPlaceholderCover(),
+              ),
+            );
+          },
         );
       },
     );
@@ -380,10 +391,17 @@ class NowPlayingScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
-                      boxShadow: ZyloFx.glow(
-                        isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
-                        blur: 30,
-                      ),
+                      boxShadow: [
+                        ...ZyloFx.glow(
+                          isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                          blur: isPlaying ? 56 : 30,
+                          spread: isPlaying ? 1.2 : 0,
+                        ),
+                        ...ZyloFx.glow(
+                          isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                          blur: isPlaying ? 22 : 14,
+                        ),
+                      ],
                     ),
                     child: isLoading
                         ? const Center(

@@ -43,6 +43,7 @@ class _EqualizerBarsState extends State<EqualizerBars> with SingleTickerProvider
       _controller.repeat();
     } else if (!widget.isActive && _controller.isAnimating) {
       _controller.stop();
+      _controller.value = 0;
     }
   }
 
@@ -67,38 +68,41 @@ class _EqualizerBarsState extends State<EqualizerBars> with SingleTickerProvider
 
     return SizedBox(
       height: widget.height,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final t = _controller.value;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(bars, (i) {
-              final v = widget.isActive ? _barValue(i, t) : 0.22;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Container(
-                  width: 3,
-                  height: widget.height * v,
-                  decoration: BoxDecoration(
-                    color: widget.color,
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: widget.isActive
-                        ? [
-                            BoxShadow(
-                              color: glowColor,
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
+      child: TickerMode(
+        enabled: widget.isActive,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(bars, (i) {
+                final v = widget.isActive ? _barValue(i, t) : 0.22;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: Container(
+                    width: 3,
+                    height: widget.height * v,
+                    decoration: BoxDecoration(
+                      color: widget.color,
+                      borderRadius: BorderRadius.circular(3),
+                      boxShadow: widget.isActive
+                          ? [
+                              BoxShadow(
+                                color: glowColor,
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
                   ),
-                ),
-              );
-            }),
-          );
-        },
+                );
+              }),
+            );
+          },
+        ),
       ),
     );
   }
