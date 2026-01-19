@@ -8,6 +8,7 @@ import '../content/admin_content_models.dart';
 import '../content/admin_content_repository.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/zylo_backdrop.dart';
+import 'dj_profile_screen.dart';
 import 'now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
 
@@ -74,6 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       client.close();
     }
+  }
+
+  void _openDjProfile(BuildContext context, AdminDj dj) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DJProfileScreen(
+          audioHandler: audioHandler,
+          djId: dj.id,
+        ),
+      ),
+    );
   }
 
   @override
@@ -673,27 +685,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDjCard(BuildContext context, {required AdminDj dj, required AdminMix mix}) {
+    const djRed = Color(0xFFFF3B30);
+
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => _playMix(context, mix),
+        onTap: null,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           child: Row(
             children: [
-              _buildDjAvatar(dj),
+              GestureDetector(
+                onTap: () => _openDjProfile(context, dj),
+                child: _buildDjAvatar(dj),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      dj.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    GestureDetector(
+                      onTap: () => _openDjProfile(context, dj),
+                      child: Text(
+                        dj.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -737,11 +757,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 46,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: ZyloColors.zyloYellow.withAlphaF(0.16),
-                  border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.35)),
-                  boxShadow: ZyloFx.glow(ZyloColors.zyloYellow, blur: 18),
+                  color: djRed.withAlphaF(0.18),
+                  border: Border.all(color: djRed.withAlphaF(0.35)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: djRed.withAlphaF(0.16),
+                      blurRadius: 18,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+                child: IconButton(
+                  icon: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+                  onPressed: () => _playMix(context, mix),
+                ),
               ),
             ],
           ),
@@ -751,6 +780,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDjAvatar(AdminDj dj) {
+    const djRed = Color(0xFFFF3B30);
     final fallbackLetter = dj.name.isNotEmpty ? dj.name.trim().substring(0, 1).toUpperCase() : 'D';
     return Container(
       width: 62,
@@ -758,8 +788,14 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: ZyloColors.panel2,
-        border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.35), width: 1),
-        boxShadow: ZyloFx.glow(ZyloColors.zyloYellow, blur: 14),
+        border: Border.all(color: djRed.withAlphaF(0.35), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: djRed.withAlphaF(0.14),
+            blurRadius: 14,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: ClipOval(
         child: dj.avatarUrl != null && dj.avatarUrl!.trim().isNotEmpty
@@ -774,12 +810,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _djAvatarFallback(String letter) {
+    const djRed = Color(0xFFFF3B30);
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.black,
-            ZyloColors.zyloYellow.withAlphaF(0.18),
+            djRed.withAlphaF(0.14),
             Colors.black,
           ],
           begin: Alignment.topLeft,
