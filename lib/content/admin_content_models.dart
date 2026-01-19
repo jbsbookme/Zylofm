@@ -36,6 +36,8 @@ class AdminDj {
   final String id;
   final String name;
   final String blurb;
+  final String? location;
+  final List<String> genres;
   final String? avatarUrl;
   final String? instagramUrl;
   final String? tiktokUrl;
@@ -48,6 +50,8 @@ class AdminDj {
     required this.id,
     required this.name,
     required this.blurb,
+    this.location,
+    this.genres = const <String>[],
     this.avatarUrl,
     this.instagramUrl,
     this.tiktokUrl,
@@ -66,6 +70,19 @@ class AdminDj {
       return (raw != null && raw.isNotEmpty) ? raw : null;
     }
 
+    String? optText(String key) {
+      final raw = (json[key] as String?)?.trim();
+      return (raw != null && raw.isNotEmpty) ? raw : null;
+    }
+
+    List<String> optStringList(String key) {
+      final raw = json[key];
+      if (raw is List) {
+        return raw.whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      }
+      return const <String>[];
+    }
+
     List<String> optIdList(String key) {
       final raw = json[key];
       if (raw is List) {
@@ -78,6 +95,8 @@ class AdminDj {
       id: id.isNotEmpty ? id : name.toLowerCase().replaceAll(' ', '_'),
       name: name.isNotEmpty ? name : 'DJ',
       blurb: (json['blurb'] as String?)?.trim() ?? '',
+      location: optText('location'),
+      genres: optStringList('genres'),
       avatarUrl: (json['avatarUrl'] as String?)?.trim(),
       instagramUrl: optUrl('instagramUrl'),
       tiktokUrl: optUrl('tiktokUrl'),

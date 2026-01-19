@@ -25,6 +25,10 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
   late final Future<AdminContent> _contentFuture;
   late final AnimationController _enterController;
 
+  double _scrollOffset = 0;
+  bool _filterInitialized = false;
+  _SetsFilter _setsFilter = _SetsFilter.all;
+
   static const Color _djRed = Color(0xFFFF3B30);
 
   @override
@@ -91,49 +95,92 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           final latestSets = resolveIds(dj.latestMixIds);
           final popularSets = resolveIds(dj.popularMixIds);
 
+          if (!_filterInitialized) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              setState(() {
+                _filterInitialized = true;
+                if (latestSets.isNotEmpty) {
+                  _setsFilter = _SetsFilter.latest;
+                } else if (popularSets.isNotEmpty) {
+                  _setsFilter = _SetsFilter.popular;
+                } else {
+                  _setsFilter = _SetsFilter.all;
+                }
+              });
+            });
+          }
+
+          final hasCurated = latestSets.isNotEmpty || popularSets.isNotEmpty;
+
+          List<AdminMix> shown;
+          String title;
+          switch (_setsFilter) {
+            case _SetsFilter.latest:
+              shown = latestSets.isNotEmpty ? latestSets : mixesAll;
+              title = 'Latest Sets';
+              break;
+            case _SetsFilter.popular:
+              shown = popularSets.isNotEmpty ? popularSets : mixesAll;
+              title = 'Popular Sets';
+              break;
+            case _SetsFilter.all:
+              shown = mixesAll;
+              title = 'Sets';
+              break;
+          }
+
           return FadeTransition(
             opacity: CurvedAnimation(parent: _enterController, curve: Curves.easeOut),
             child: SlideTransition(
               position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(
                 CurvedAnimation(parent: _enterController, curve: Curves.easeOut),
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(context, dj),
-                    const SizedBox(height: 14),
-                    _buildPrimaryActions(context, dj, mixesAll),
-                    const SizedBox(height: 18),
-                    if (mixesAll.isEmpty) ...[
-                      _buildSectionTitle('Sets'),
-                      const SizedBox(height: 10),
-                      _buildEmptySets(),
-                    ] else ...[
-                      if (latestSets.isNotEmpty) ...[
-                        _buildSectionTitle('Latest Sets'),
-                        const SizedBox(height: 10),
-                        _buildMixList(context, latestSets),
-                        const SizedBox(height: 18),
-                      ],
-                      if (popularSets.isNotEmpty) ...[
-                        _buildSectionTitle('Popular Sets'),
-                        const SizedBox(height: 10),
-                        _buildMixList(context, popularSets),
-                        const SizedBox(height: 18),
-                      ],
-                      if (latestSets.isEmpty && popularSets.isEmpty) ...[
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n.metrics.axis != Axis.vertical) return false;
+                  final next = n.metrics.pixels;
+                  if ((next - _scrollOffset).abs() >= 1.0 && mounted) {
+                    setState(() => _scrollOffset = next);
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Transform.translate(
+                        offset: Offset(0, (_scrollOffset * 0.10).clamp(0, 22)),
+                        child: _buildHeader(context, dj),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildPrimaryActions(context, dj, mixesAll),
+                      const SizedBox(height: 14),
+                      _buildSectionDivider(),
+                      const SizedBox(height: 14),
+                      if (mixesAll.isEmpty) ...[
                         _buildSectionTitle('Sets'),
                         const SizedBox(height: 10),
-                        _buildMixList(context, mixesAll),
+                        _buildEmptySets(),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(child: _buildSectionTitle(title)),
+                            if (hasCurated) _buildSetsFilterChips(latestSets.isNotEmpty, popularSets.isNotEmpty),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _buildMixList(context, shown),
                       ],
+                      const SizedBox(height: 14),
+                      _buildSectionDivider(),
+                      const SizedBox(height: 14),
+                      _buildSectionTitle('Redes'),
+                      const SizedBox(height: 10),
+                      _buildSocialRow(context, dj),
                     ],
-                    const SizedBox(height: 18),
-                    _buildSectionTitle('Redes'),
-                    const SizedBox(height: 10),
-                    _buildSocialRow(context, dj),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -158,13 +205,6 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           label: 'TikTok',
           icon: Icons.music_video_rounded,
           url: dj.tiktokUrl,
-        ),
-        const SizedBox(width: 10),
-        _socialIcon(
-          context,
-          label: 'SoundCloud',
-          icon: Icons.cloud_rounded,
-          url: dj.soundcloudUrl,
         ),
         const SizedBox(width: 10),
         _socialIcon(
@@ -370,6 +410,12 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
 
   Widget _buildHeader(BuildContext context, AdminDj dj) {
     final bio = dj.blurb.trim();
+    final location = dj.location?.trim() ?? '';
+    final genres = dj.genres.where((g) => g.trim().isNotEmpty).toList(growable: false);
+    final metaPieces = <String>[];
+    if (location.isNotEmpty) metaPieces.add(location);
+    if (genres.isNotEmpty) metaPieces.add(genres.take(3).join(' • '));
+    final metaLine = metaPieces.join('  •  ');
 
     return Container(
       width: double.infinity,
@@ -402,6 +448,20 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
+          if (metaLine.isNotEmpty) ...[
+            Text(
+              metaLine,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: ZyloColors.zyloYellow.withAlphaF(0.82),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+          ],
           if (bio.isNotEmpty)
             Text(
               bio,
@@ -579,63 +639,70 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
   }
 
   Widget _buildMixListCard(BuildContext context, AdminMix mix) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: ZyloColors.panel.withAlphaF(0.82),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1C1C28)),
-      ),
-      child: Row(
-        children: [
-          _buildMixCover(mix),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  mix.title,
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlphaF(0.40),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: _djRed.withAlphaF(0.22)),
-                      ),
-                      child: Text(
-                        mix.formattedDuration,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+    return _PressScale(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => _playMix(context, mix),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: ZyloColors.panel.withAlphaF(0.82),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFF1C1C28)),
+        ),
+        child: Row(
+          children: [
+            _buildMixCover(mix),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mix.title,
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlphaF(0.40),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: _djRed.withAlphaF(0.22)),
+                        ),
+                        child: Text(
+                          mix.formattedDuration,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        mix.djName,
-                        style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          mix.djName,
+                          style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          _buildPlayButton(onPressed: () => _playMix(context, mix)),
-        ],
+            const SizedBox(width: 10),
+            _TapScale(
+              onTap: () => _playMix(context, mix),
+              child: _buildPlayButton(onPressed: () => _playMix(context, mix)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -694,6 +761,59 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
     );
   }
 
+  Widget _buildSectionDivider() {
+    return Container(
+      height: 1,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.white.withAlphaF(0.00),
+            ZyloColors.zyloYellow.withAlphaF(0.16),
+            Colors.white.withAlphaF(0.00),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSetsFilterChips(bool hasLatest, bool hasPopular) {
+    ChoiceChip chip(String label, _SetsFilter value, {required bool enabled}) {
+      final selected = _setsFilter == value;
+      final fg = selected ? ZyloColors.zyloYellow : Colors.white60;
+      final border = selected ? ZyloColors.zyloYellow.withAlphaF(0.35) : const Color(0xFF1C1C28);
+
+      return ChoiceChip(
+        label: Text(label, style: TextStyle(color: enabled ? fg : Colors.white24, fontWeight: FontWeight.w800)),
+        selected: selected,
+        onSelected: enabled
+            ? (v) {
+                if (!v) return;
+                setState(() => _setsFilter = value);
+              }
+            : null,
+        backgroundColor: ZyloColors.panel.withAlphaF(0.70),
+        selectedColor: ZyloColors.panel.withAlphaF(0.85),
+        side: BorderSide(color: enabled ? border : const Color(0xFF1C1C28)),
+        showCheckmark: false,
+        visualDensity: VisualDensity.compact,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        chip('Latest', _SetsFilter.latest, enabled: hasLatest),
+        const SizedBox(width: 8),
+        chip('Popular', _SetsFilter.popular, enabled: hasPopular),
+        const SizedBox(width: 8),
+        chip('All', _SetsFilter.all, enabled: true),
+      ],
+    );
+  }
+
   Future<void> _playMix(BuildContext context, AdminMix mix) async {
     if (mix.hlsUrl.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -727,5 +847,88 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
         );
       }
     }
+  }
+}
+
+enum _SetsFilter { latest, popular, all }
+
+class _PressScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final BorderRadius borderRadius;
+
+  const _PressScale({
+    required this.child,
+    required this.borderRadius,
+    this.onTap,
+  });
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _pressed = false;
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = _pressed
+        ? 0.98
+        : (_hovered ? 0.995 : 1.0);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 90),
+        curve: Curves.easeOut,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: widget.borderRadius,
+            overlayColor: WidgetStateProperty.all(Colors.white.withAlphaF(0.06)),
+            onHighlightChanged: (v) => setState(() => _pressed = v),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TapScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _TapScale({
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  State<_TapScale> createState() => _TapScaleState();
+}
+
+class _TapScaleState extends State<_TapScale> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _down = true),
+      onTapCancel: () => setState(() => _down = false),
+      onTapUp: (_) => setState(() => _down = false),
+      child: AnimatedScale(
+        scale: _down ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 80),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
   }
 }

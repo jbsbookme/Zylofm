@@ -12,6 +12,8 @@
       "id": "dj_nova",
       "name": "DJ Nova",
       "blurb": "House & groove. Brillo neón.",
+      "location": "Miami",
+      "genres": ["House", "Groove", "Disco"],
       "avatarUrl": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=600",
       "instagramUrl": "https://instagram.com/dj_nova",
       "tiktokUrl": "https://www.tiktok.com/@dj_nova",
@@ -24,6 +26,8 @@
       "id": "dj_kai",
       "name": "DJ Kai",
       "blurb": "Tech + bass. Energía limpia.",
+      "location": "Barcelona",
+      "genres": ["Tech", "Bass"],
       "avatarUrl": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600"
     }
   ],
