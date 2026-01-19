@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../audio/zylo_audio_handler.dart';
@@ -26,14 +24,8 @@ class DJProfileScreen extends StatefulWidget {
 class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProviderStateMixin {
   late final Future<AdminContent> _contentFuture;
   late final AnimationController _enterController;
-  late final AnimationController _likeController;
-
-  bool _liked = false;
-  bool _prefsLoaded = false;
 
   static const Color _djRed = Color(0xFFFF3B30);
-
-  static String _likeKeyForDj(String djId) => 'liked_dj_$djId';
 
   @override
   void initState() {
@@ -45,42 +37,11 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 220),
     )..forward();
-
-    _likeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-      lowerBound: 0.0,
-      upperBound: 1.0,
-    );
-
-    _loadLikeState();
-  }
-
-  Future<void> _loadLikeState() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final liked = prefs.getBool(_likeKeyForDj(widget.djId)) ?? false;
-      if (!mounted) return;
-      setState(() {
-        _prefsLoaded = true;
-        _liked = liked;
-      });
-      if (liked) {
-        _likeController.value = 1.0;
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _prefsLoaded = true;
-        _liked = false;
-      });
-    }
   }
 
   @override
   void dispose() {
     _enterController.dispose();
-    _likeController.dispose();
     super.dispose();
   }
 
@@ -115,7 +76,20 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
             orElse: () => const AdminDj(id: 'dj', name: 'DJ', blurb: ''),
           );
 
-          final mixes = content.mixes.where((m) => m.djId == dj.id).toList(growable: false);
+          final mixesAll = content.mixes.where((m) => m.djId == dj.id).toList(growable: false);
+
+          final mixById = {for (final m in mixesAll) m.id: m};
+          List<AdminMix> resolveIds(List<String> ids) {
+            final out = <AdminMix>[];
+            for (final id in ids) {
+              final m = mixById[id];
+              if (m != null) out.add(m);
+            }
+            return out;
+          }
+
+          final latestSets = resolveIds(dj.latestMixIds);
+          final popularSets = resolveIds(dj.popularMixIds);
 
           return FadeTransition(
             opacity: CurvedAnimation(parent: _enterController, curve: Curves.easeOut),
@@ -130,14 +104,31 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
                   children: [
                     _buildHeader(context, dj),
                     const SizedBox(height: 14),
-                    _buildPrimaryActions(context, dj, mixes),
+                    _buildPrimaryActions(context, dj, mixesAll),
                     const SizedBox(height: 18),
-                    _buildSectionTitle('Sets'),
-                    const SizedBox(height: 10),
-                    if (mixes.isEmpty)
-                      _buildEmptySets()
-                    else
-                      _buildMixGallery(context, mixes),
+                    if (mixesAll.isEmpty) ...[
+                      _buildSectionTitle('Sets'),
+                      const SizedBox(height: 10),
+                      _buildEmptySets(),
+                    ] else ...[
+                      if (latestSets.isNotEmpty) ...[
+                        _buildSectionTitle('Latest Sets'),
+                        const SizedBox(height: 10),
+                        _buildMixList(context, latestSets),
+                        const SizedBox(height: 18),
+                      ],
+                      if (popularSets.isNotEmpty) ...[
+                        _buildSectionTitle('Popular Sets'),
+                        const SizedBox(height: 10),
+                        _buildMixList(context, popularSets),
+                        const SizedBox(height: 18),
+                      ],
+                      if (latestSets.isEmpty && popularSets.isEmpty) ...[
+                        _buildSectionTitle('Sets'),
+                        const SizedBox(height: 10),
+                        _buildMixList(context, mixesAll),
+                      ],
+                    ],
                     const SizedBox(height: 18),
                     _buildSectionTitle('Redes'),
                     const SizedBox(height: 10),
@@ -262,7 +253,7 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           const SizedBox(height: 18),
           _buildSectionTitle('Sets'),
           const SizedBox(height: 10),
-          _buildSkeletonGrid(),
+          _buildSkeletonList(),
         ],
       ),
     );
@@ -329,24 +320,19 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSkeletonGrid() {
+  Widget _buildSkeletonList() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final isGrid = w >= 430;
-        final cols = isGrid ? 2 : 1;
         const spacing = 12.0;
-        final tileW = (w - (spacing * (cols - 1))) / cols;
-        final tileH = isGrid ? (tileW * 0.92) : 96.0;
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
+        return Column(
           children: List.generate(4, (i) {
-            return _skeletonBox(
-              width: tileW,
-              height: tileH,
-              radius: BorderRadius.circular(18),
+            return Padding(
+              padding: EdgeInsets.only(bottom: i == 3 ? 0 : spacing),
+              child: _skeletonBox(
+                width: double.infinity,
+                height: 78,
+                radius: BorderRadius.circular(18),
+              ),
             );
           }),
         );
@@ -511,51 +497,22 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           ),
         ),
         const SizedBox(width: 10),
-        _likePill(dj),
+        _iconPill(
+          icon: Icons.favorite_border_rounded,
+          tooltip: 'Me gusta',
+          onTap: null,
+        ),
         const SizedBox(width: 10),
         _iconPill(
           icon: Icons.ios_share_rounded,
           tooltip: 'Compartir',
-          onTap: () => _shareDj(context, dj),
+          onTap: null,
         ),
       ],
     );
   }
 
-  Widget _likePill(AdminDj dj) {
-    final enabled = _prefsLoaded;
-
-    final icon = _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded;
-    final fg = _liked ? _djRed : Colors.white70;
-
-    return Tooltip(
-      message: 'Me gusta',
-      child: InkWell(
-        onTap: enabled ? () => _toggleLike(dj) : null,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: ZyloColors.panel.withAlphaF(0.75),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _liked ? _djRed.withAlphaF(0.35) : const Color(0xFF1C1C28)),
-          ),
-          child: AnimatedBuilder(
-            animation: _likeController,
-            builder: (context, child) {
-              final t = Curves.easeOutBack.transform(_likeController.value);
-              final scale = 1.0 + (0.18 * t);
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: Icon(icon, color: enabled ? fg : Colors.white38, size: 20),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _iconPill({required IconData icon, required String tooltip, required VoidCallback onTap}) {
+  Widget _iconPill({required IconData icon, required String tooltip, required VoidCallback? onTap}) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -569,44 +526,10 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFF1C1C28)),
           ),
-          child: Icon(icon, color: Colors.white70, size: 20),
+          child: Icon(icon, color: onTap == null ? Colors.white24 : Colors.white70, size: 20),
         ),
       ),
     );
-  }
-
-  Future<void> _toggleLike(AdminDj dj) async {
-    final next = !_liked;
-    setState(() => _liked = next);
-
-    if (next) {
-      _likeController.forward(from: 0.0);
-    } else {
-      _likeController.reverse(from: 1.0);
-    }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_likeKeyForDj(widget.djId), next);
-    } catch (_) {
-      // Non-blocking: Like is local-only; if persistence fails, keep the visual state.
-    }
-  }
-
-  Future<void> _shareDj(BuildContext context, AdminDj dj) async {
-    final text = 'Escucha a ${dj.name} en ZyloFM.\n\nSets en vivo y mixes premium.';
-    try {
-      final box = context.findRenderObject() as RenderBox?;
-      await Share.share(
-        text,
-        sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo compartir: $e')),
-      );
-    }
   }
 
   Widget _buildSectionTitle(String text) {
@@ -644,130 +567,97 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildMixGallery(BuildContext context, List<AdminMix> mixes) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final isGrid = w >= 430;
-        final cols = isGrid ? 2 : 1;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cols,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: isGrid ? 1.10 : 3.15,
-          ),
-          itemCount: mixes.length,
-          itemBuilder: (context, index) {
-            final mix = mixes[index];
-            return _buildMixCard(context, mix, dense: !isGrid);
-          },
-        );
-      },
+  Widget _buildMixList(BuildContext context, List<AdminMix> mixes) {
+    return Column(
+      children: [
+        for (int i = 0; i < mixes.length; i++) ...[
+          _buildMixListCard(context, mixes[i]),
+          if (i != mixes.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 
-  Widget _buildMixCard(BuildContext context, AdminMix mix, {required bool dense}) {
-    final radius = BorderRadius.circular(18);
-
-    return InkWell(
-      onTap: () => _playMix(context, mix),
-      borderRadius: radius,
-      child: Container(
-        decoration: BoxDecoration(
-          color: ZyloColors.panel.withAlphaF(0.82),
-          borderRadius: radius,
-          border: Border.all(color: const Color(0xFF1C1C28)),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: radius,
-                child: mix.coverUrl != null && mix.coverUrl!.trim().isNotEmpty
-                    ? Image.network(
-                        mix.coverUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildCoverFallback(),
-                      )
-                    : _buildCoverFallback(),
-              ),
-            ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: radius,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withAlphaF(dense ? 0.35 : 0.15),
-                      Colors.black.withAlphaF(0.75),
-                    ],
-                  ),
+  Widget _buildMixListCard(BuildContext context, AdminMix mix) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: ZyloColors.panel.withAlphaF(0.82),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1C1C28)),
+      ),
+      child: Row(
+        children: [
+          _buildMixCover(mix),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mix.title,
+                  style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ),
-            Positioned(
-              right: 10,
-              top: 10,
-              child: _buildPlayPuck(onPressed: () => _playMix(context, mix)),
-            ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mix.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      fontSize: 14,
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlphaF(0.40),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: _djRed.withAlphaF(0.22)),
+                      ),
+                      child: Text(
+                        mix.formattedDuration,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                    maxLines: dense ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlphaF(0.55),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: _djRed.withAlphaF(0.24)),
-                        ),
-                        child: Text(
-                          mix.formattedDuration,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        mix.djName,
+                        style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          mix.djName,
-                          style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w700),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          _buildPlayButton(onPressed: () => _playMix(context, mix)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMixCover(AdminMix mix) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: ZyloColors.panel2,
+        border: Border.all(color: Colors.white.withAlphaF(0.08)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: mix.coverUrl != null && mix.coverUrl!.trim().isNotEmpty
+            ? Image.network(
+                mix.coverUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildCoverFallback(),
+              )
+            : _buildCoverFallback(),
       ),
     );
   }
@@ -776,12 +666,12 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
     return Container(
       color: ZyloColors.panel2,
       child: const Center(
-        child: Icon(Icons.music_note_rounded, color: Colors.white38, size: 28),
+        child: Icon(Icons.music_note_rounded, color: Colors.white38, size: 24),
       ),
     );
   }
 
-  Widget _buildPlayPuck({required VoidCallback onPressed}) {
+  Widget _buildPlayButton({required VoidCallback onPressed}) {
     return Container(
       width: 44,
       height: 44,

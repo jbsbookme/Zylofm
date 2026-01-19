@@ -16,7 +16,9 @@
       "instagramUrl": "https://instagram.com/dj_nova",
       "tiktokUrl": "https://www.tiktok.com/@dj_nova",
       "soundcloudUrl": "https://soundcloud.com/dj_nova",
-      "youtubeUrl": "https://www.youtube.com/@dj_nova"
+      "youtubeUrl": "https://www.youtube.com/@dj_nova",
+      "latestMixIds": ["mix_zylo_002", "mix_zylo_001"],
+      "popularMixIds": ["mix_zylo_001", "mix_zylo_002"]
     },
     {
       "id": "dj_kai",

@@ -41,6 +41,8 @@ class AdminDj {
   final String? tiktokUrl;
   final String? soundcloudUrl;
   final String? youtubeUrl;
+  final List<String> latestMixIds;
+  final List<String> popularMixIds;
 
   const AdminDj({
     required this.id,
@@ -51,6 +53,8 @@ class AdminDj {
     this.tiktokUrl,
     this.soundcloudUrl,
     this.youtubeUrl,
+    this.latestMixIds = const <String>[],
+    this.popularMixIds = const <String>[],
   });
 
   factory AdminDj.fromJson(Map<String, dynamic> json) {
@@ -62,6 +66,14 @@ class AdminDj {
       return (raw != null && raw.isNotEmpty) ? raw : null;
     }
 
+    List<String> optIdList(String key) {
+      final raw = json[key];
+      if (raw is List) {
+        return raw.whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      }
+      return const <String>[];
+    }
+
     return AdminDj(
       id: id.isNotEmpty ? id : name.toLowerCase().replaceAll(' ', '_'),
       name: name.isNotEmpty ? name : 'DJ',
@@ -71,6 +83,8 @@ class AdminDj {
       tiktokUrl: optUrl('tiktokUrl'),
       soundcloudUrl: optUrl('soundcloudUrl'),
       youtubeUrl: optUrl('youtubeUrl'),
+      latestMixIds: optIdList('latestMixIds'),
+      popularMixIds: optIdList('popularMixIds'),
     );
   }
 }
