@@ -60,3 +60,6 @@ pubspec.lock
 .DS_Store
 Thumbs.db
 *.log
+
+# Local demo exports
+zylo_fm_app_*.zip

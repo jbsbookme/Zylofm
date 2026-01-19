@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/zylo_audio_handler.dart';
 import '../content/admin_content_models.dart';
@@ -23,8 +25,14 @@ class DJProfileScreen extends StatefulWidget {
 class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProviderStateMixin {
   late final Future<AdminContent> _contentFuture;
   late final AnimationController _enterController;
+  late final AnimationController _likeController;
+
+  bool _liked = false;
+  bool _prefsLoaded = false;
 
   static const Color _djRed = Color(0xFFFF3B30);
+
+  static String _likeKeyForDj(String djId) => 'liked_dj_$djId';
 
   @override
   void initState() {
@@ -36,11 +44,42 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 220),
     )..forward();
+
+    _likeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+
+    _loadLikeState();
+  }
+
+  Future<void> _loadLikeState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final liked = prefs.getBool(_likeKeyForDj(widget.djId)) ?? false;
+      if (!mounted) return;
+      setState(() {
+        _prefsLoaded = true;
+        _liked = liked;
+      });
+      if (liked) {
+        _likeController.value = 1.0;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _prefsLoaded = true;
+        _liked = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _enterController.dispose();
+    _likeController.dispose();
     super.dispose();
   }
 
@@ -369,18 +408,47 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
           ),
         ),
         const SizedBox(width: 10),
-        _iconPill(
-          icon: Icons.favorite_border_rounded,
-          tooltip: 'Follow',
-          onTap: () {},
-        ),
+        _likePill(dj),
         const SizedBox(width: 10),
         _iconPill(
           icon: Icons.ios_share_rounded,
-          tooltip: 'Share',
-          onTap: () {},
+          tooltip: 'Compartir',
+          onTap: () => _shareDj(context, dj),
         ),
       ],
+    );
+  }
+
+  Widget _likePill(AdminDj dj) {
+    final enabled = _prefsLoaded;
+
+    final icon = _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded;
+    final fg = _liked ? _djRed : Colors.white70;
+
+    return Tooltip(
+      message: 'Me gusta',
+      child: InkWell(
+        onTap: enabled ? () => _toggleLike(dj) : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: ZyloColors.panel.withAlphaF(0.75),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _liked ? _djRed.withAlphaF(0.35) : const Color(0xFF1C1C28)),
+          ),
+          child: AnimatedBuilder(
+            animation: _likeController,
+            builder: (context, child) {
+              final t = Curves.easeOutBack.transform(_likeController.value);
+              final scale = 1.0 + (0.18 * t);
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Icon(icon, color: enabled ? fg : Colors.white38, size: 20),
+          ),
+        ),
+      ),
     );
   }
 
@@ -402,6 +470,40 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
         ),
       ),
     );
+  }
+
+  Future<void> _toggleLike(AdminDj dj) async {
+    final next = !_liked;
+    setState(() => _liked = next);
+
+    if (next) {
+      _likeController.forward(from: 0.0);
+    } else {
+      _likeController.reverse(from: 1.0);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_likeKeyForDj(widget.djId), next);
+    } catch (_) {
+      // Non-blocking: Like is local-only; if persistence fails, keep the visual state.
+    }
+  }
+
+  Future<void> _shareDj(BuildContext context, AdminDj dj) async {
+    final text = 'Escucha a ${dj.name} en ZyloFM.\n\nSets en vivo y mixes premium.';
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      await Share.share(
+        text,
+        sharePositionOrigin: box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo compartir: $e')),
+      );
+    }
   }
 
   Widget _buildSectionTitle(String text) {
