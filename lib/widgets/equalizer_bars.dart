@@ -28,7 +28,7 @@ class _EqualizerBarsState extends State<EqualizerBars> with SingleTickerProvider
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 720),
     );
 
     if (widget.isActive) {
@@ -63,6 +63,7 @@ class _EqualizerBarsState extends State<EqualizerBars> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final bars = widget.bars.clamp(3, 7);
+    final glowColor = widget.color.withValues(alpha: 0.22);
 
     return SizedBox(
       height: widget.height,
@@ -83,6 +84,15 @@ class _EqualizerBarsState extends State<EqualizerBars> with SingleTickerProvider
                   decoration: BoxDecoration(
                     color: widget.color,
                     borderRadius: BorderRadius.circular(3),
+                    boxShadow: widget.isActive
+                        ? [
+                            BoxShadow(
+                              color: glowColor,
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               );

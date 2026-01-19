@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/zylo_backdrop.dart';
 import 'now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
 
@@ -93,6 +94,9 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: ZyloColors.black,
       body: Stack(
         children: [
+          const Positioned.fill(
+            child: ZyloBackdrop(intensity: 0.95),
+          ),
           CustomScrollView(
             slivers: [
               SliverToBoxAdapter(

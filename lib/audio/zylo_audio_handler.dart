@@ -26,6 +26,8 @@ enum ZyloContentType {
 
 class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
+
+  Future<void>? _audioSessionConfigured;
   
   // Streams para UI
   final BehaviorSubject<ZyloPlayerState> _playerState = 
@@ -55,8 +57,12 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   bool get isLiveContent => _contentType.value == ZyloContentType.radio;
 
   ZyloAudioHandler() {
-    _configureAudioSession();
+    _ensureAudioSessionConfigured();
     _initializeListeners();
+  }
+
+  Future<void> _ensureAudioSessionConfigured() {
+    return _audioSessionConfigured ??= _configureAudioSession();
   }
 
   Future<void> _configureAudioSession() async {
@@ -66,6 +72,16 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await session.setActive(true);
     } catch (e) {
       if (kDebugMode) debugPrint('AudioSession configure failed: $e');
+    }
+  }
+
+  Future<void> _ensureAudioSessionActive() async {
+    try {
+      await _ensureAudioSessionConfigured();
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('AudioSession setActive failed: $e');
     }
   }
 
@@ -145,6 +161,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     String? coverUrl,
     int? durationSec,
   }) async {
+    await _ensureAudioSessionActive();
     _playerState.add(ZyloPlayerState.loading);
     _contentType.add(ZyloContentType.mix);
 
@@ -181,6 +198,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     required String streamUrl,
     String? coverUrl,
   }) async {
+    await _ensureAudioSessionActive();
     _playerState.add(ZyloPlayerState.loading);
     _contentType.add(ZyloContentType.radio);
 
@@ -209,6 +227,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> play() async {
+    await _ensureAudioSessionActive();
     await _player.play();
   }
 

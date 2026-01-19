@@ -33,6 +33,8 @@ pubspec.lock
 **/ios/**/.symlinks/
 **/ios/**/profile
 **/ios/**/xcuserdata
+**/macos/**/xcuserdata
+**/*.xcuserstate
 **/ios/.generated/
 **/ios/Flutter/.last_build_id
 **/ios/Flutter/App.framework

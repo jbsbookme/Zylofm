@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../theme/zylo_theme.dart';
+import '../widgets/pulsing_ring.dart';
+import '../widgets/zylo_backdrop.dart';
 
 class NowPlayingScreen extends StatelessWidget {
   final ZyloAudioHandler audioHandler;
@@ -37,22 +39,8 @@ class NowPlayingScreen extends StatelessWidget {
       body: SafeArea(
         child: Stack(
           children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0, -0.65),
-                      radius: 1.05,
-                      colors: [
-                        ZyloColors.electricBlue.withAlphaF(0.14),
-                        ZyloColors.neonGreen.withAlphaF(0.08),
-                        ZyloColors.black,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            const Positioned.fill(
+              child: ZyloBackdrop(intensity: 1.0),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -246,10 +234,13 @@ class NowPlayingScreen extends StatelessWidget {
             children: [
               if (state == ZyloPlayerState.loading || 
                   state == ZyloPlayerState.buffering)
-                const SizedBox(
+                SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: statusColor,
+                  ),
                 ),
               if (state == ZyloPlayerState.error)
                 const Icon(Icons.error_outline, size: 14, color: Color(0xFFFF4D4D)),
@@ -377,47 +368,55 @@ class NowPlayingScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 
                 // Play/Pause button grande
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
-                    boxShadow: ZyloFx.glow(isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue, blur: 28),
+                PulsingRing(
+                  isActive: isPlaying && !isLoading,
+                  color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                  size: 84,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                      boxShadow: ZyloFx.glow(
+                        isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                        blur: 30,
+                      ),
+                    ),
+                    child: isLoading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 34,
+                              height: 34,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 3,
+                              ),
+                            ),
+                          )
+                        : IconButton(
+                            icon: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 160),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeOut,
+                              child: Icon(
+                                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                key: ValueKey<bool>(isPlaying),
+                                size: 44,
+                                color: isPlaying ? Colors.black : Colors.white,
+                              ),
+                            ),
+                            onPressed: () {
+                              if (isPlaying) {
+                                audioHandler.pause();
+                              } else {
+                                audioHandler.play();
+                              }
+                            },
+                          ),
                   ),
-                  child: isLoading
-                      ? const Center(
-                          child: SizedBox(
-                            width: 34,
-                            height: 34,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
-                            ),
-                          ),
-                        )
-                      : IconButton(
-                          icon: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 160),
-                            switchInCurve: Curves.easeOut,
-                            switchOutCurve: Curves.easeOut,
-                            child: Icon(
-                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                              key: ValueKey<bool>(isPlaying),
-                              size: 44,
-                              color: isPlaying ? Colors.black : Colors.white,
-                            ),
-                          ),
-                          onPressed: () {
-                            if (isPlaying) {
-                              audioHandler.pause();
-                            } else {
-                              audioHandler.play();
-                            }
-                          },
-                        ),
                 ),
                 
                 const SizedBox(width: 16),

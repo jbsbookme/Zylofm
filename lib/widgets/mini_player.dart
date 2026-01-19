@@ -7,6 +7,7 @@ import '../audio/zylo_audio_handler.dart';
 import '../screens/now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
 import 'equalizer_bars.dart';
+import 'pulsing_ring.dart';
 
 class MiniPlayer extends StatelessWidget {
   final ZyloAudioHandler audioHandler;
@@ -251,31 +252,36 @@ class MiniPlayer extends StatelessWidget {
     final isLoading = state == ZyloPlayerState.loading || 
                       state == ZyloPlayerState.buffering;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
-        boxShadow: ZyloFx.glow(isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue),
-      ),
-      child: IconButton(
-        icon: Icon(
-          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          size: 26,
-          color: isPlaying ? Colors.black : Colors.white,
+    return PulsingRing(
+      isActive: isPlaying && !isLoading,
+      color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+      size: 46,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+          boxShadow: ZyloFx.glow(isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue),
         ),
-        onPressed: isLoading
-            ? null
-            : () {
-                if (isPlaying) {
-                  audioHandler.pause();
-                } else {
-                  audioHandler.play();
-                }
-              },
+        child: IconButton(
+          icon: Icon(
+            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: 26,
+            color: isPlaying ? Colors.black : Colors.white,
+          ),
+          onPressed: isLoading
+              ? null
+              : () {
+                  if (isPlaying) {
+                    audioHandler.pause();
+                  } else {
+                    audioHandler.play();
+                  }
+                },
+        ),
       ),
     );
   }
