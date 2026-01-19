@@ -1,10 +1,11 @@
-/// ZyloFM - Aplicación de streaming de música
-/// Punto de entrada principal de la aplicación
+// ZyloFM - Aplicación de streaming de música
+// Punto de entrada principal de la aplicación
 
 import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import 'audio/zylo_audio_handler.dart';
 import 'screens/home_screen.dart';
+import 'theme/zylo_theme.dart';
 
 /// AudioHandler global accesible desde cualquier parte de la app
 late final ZyloAudioHandler audioHandler;
@@ -22,7 +23,7 @@ Future<void> main() async {
       androidNotificationChannelName: 'ZyloFM Playback',
       androidNotificationChannelDescription: 'Controles de reproducción de ZyloFM',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
       // Configuración general
       artDownscaleWidth: 300,
       artDownscaleHeight: 300,
@@ -47,38 +48,9 @@ class ZyloFMApp extends StatelessWidget {
       
       // Tema oscuro por defecto (ideal para apps de música)
       themeMode: ThemeMode.dark,
-      
-      // Tema claro
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.light,
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
-      ),
-      
-      // Tema oscuro
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.dark,
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+
+      theme: ZyloTheme.dark(),
+      darkTheme: ZyloTheme.dark(),
       
       // Pantalla inicial
       home: HomeScreen(audioHandler: audioHandler),

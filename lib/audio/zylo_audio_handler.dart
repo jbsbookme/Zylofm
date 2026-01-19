@@ -1,8 +1,10 @@
-/// ZyloAudioHandler - Manejador de audio para ZyloFM
-/// Extiende BaseAudioHandler con soporte para mixes HLS y radio en vivo
+// ZyloAudioHandler - Manejador de audio para ZyloFM
+// Extiende BaseAudioHandler con soporte para mixes HLS y radio en vivo
 
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Estados posibles del reproductor
@@ -53,7 +55,18 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   bool get isLiveContent => _contentType.value == ZyloContentType.radio;
 
   ZyloAudioHandler() {
+    _configureAudioSession();
     _initializeListeners();
+  }
+
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('AudioSession configure failed: $e');
+    }
   }
 
   void _initializeListeners() {
@@ -62,7 +75,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _broadcastPlaybackState,
       onError: (Object e, StackTrace st) {
         _playerState.add(ZyloPlayerState.error);
-        print('Error en playback: $e');
+        if (kDebugMode) debugPrint('Error en playback: $e');
       },
     );
 
@@ -154,7 +167,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await _player.play();
     } catch (e) {
       _playerState.add(ZyloPlayerState.error);
-      print('Error al reproducir mix: $e');
+      if (kDebugMode) debugPrint('Error al reproducir mix: $e');
       rethrow;
     }
   }
@@ -189,7 +202,7 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await _player.play();
     } catch (e) {
       _playerState.add(ZyloPlayerState.error);
-      print('Error al reproducir radio: $e');
+      if (kDebugMode) debugPrint('Error al reproducir radio: $e');
       rethrow;
     }
   }

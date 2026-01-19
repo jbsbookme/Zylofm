@@ -1,10 +1,11 @@
-/// Home Screen - Pantalla principal de ZyloFM
-/// Muestra la lista de mixes y acceso a radio en vivo
+// Home Screen - Pantalla principal de ZyloFM
+// Muestra la lista de mixes y acceso a radio en vivo
 
 import 'package:flutter/material.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../widgets/mini_player.dart';
 import 'now_playing_screen.dart';
+import '../theme/zylo_theme.dart';
 
 /// Modelo de datos para un mix
 class MixItem {
@@ -86,72 +87,82 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
+      backgroundColor: ZyloColors.black,
       body: Stack(
         children: [
           CustomScrollView(
             slivers: [
-              // AppBar
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                flexibleSpace: FlexibleSpaceBar(
-                  title: const Text(
-                    'ZyloFM',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: _buildHeader(context),
                   ),
                 ),
               ),
 
-              // Botón Radio en Vivo
+              // Card grande de Radio ZyloFM (Live)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildRadioButton(context),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+                  child: _buildLiveHeroCard(context),
                 ),
               ),
 
-              // Título de sección
-              const SliverToBoxAdapter(
+              // Featured Mixes horizontal
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: Text(
-                    'Mixes Destacados',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: _buildSectionHeader(context, title: 'Mixes Destacados'),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    scrollDirection: Axis.horizontal,
+                    itemBuilder: (context, index) {
+                      final mix = _mockMixes[index % _mockMixes.length];
+                      return _buildFeaturedMixCard(context, mix);
+                    },
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemCount: _mockMixes.length,
                   ),
                 ),
               ),
 
-              // Lista de mixes
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+              // DJs (lista simple con play rápido)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: _buildSectionHeader(context, title: 'DJs en Cabina'),
+                ),
+              ),
+
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final mix = _mockMixes[index];
-                    return _buildMixTile(context, mix);
+                    final djName = _uniqueDjs[index];
+                    final mix = _mockMixes.firstWhere((m) => m.djName == djName);
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: _buildDjRow(context, djName: djName, mix: mix),
+                    );
                   },
-                  childCount: _mockMixes.length,
+                  childCount: _uniqueDjs.length,
                 ),
               ),
 
               // Espacio para el MiniPlayer
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 80),
+              SliverToBoxAdapter(
+                child: SizedBox(height: 84 + bottomInset),
               ),
             ],
           ),
@@ -168,113 +179,190 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRadioButton(BuildContext context) {
+  static List<String> get _uniqueDjs {
+    final seen = <String>{};
+    final djs = <String>[];
+    for (final m in _mockMixes) {
+      if (seen.add(m.djName)) djs.add(m.djName);
+    }
+    return djs;
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+              children: const [
+                TextSpan(text: 'Zylo'),
+                TextSpan(text: 'FM'),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: ZyloColors.panel,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF1C1C28)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: ZyloColors.neonGreen,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'LIVE',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                      color: Colors.white,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, {required String title}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLiveHeroCard(BuildContext context) {
     return Card(
-      elevation: 4,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _playRadio(context),
         child: Container(
-          height: 100,
+          height: 170,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.red.shade700,
-                Colors.red.shade900,
-              ],
-            ),
+            gradient: ZyloFx.neonSheen(opacity: 1),
           ),
-          child: Row(
+          child: Stack(
             children: [
-              const SizedBox(width: 20),
-              
-              // Icono animado de radio
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.2),
-                ),
-                child: const Icon(
-                  Icons.radio,
-                  size: 32,
-                  color: Colors.white,
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.18,
+                  child: Image.network(
+                    _radioCoverUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
-              
-              const SizedBox(width: 16),
-              
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'EN VIVO',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xCC000000),
+                        Color(0x88000000),
+                        Color(0xCC000000),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Radio ZyloFM',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: ZyloColors.liveRed.withAlphaF(0.18),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: ZyloColors.liveRed.withAlphaF(0.35)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: ZyloColors.liveRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'RADIO • LIVE',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Radio ZyloFM',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Negro total. Energía neón. 24/7.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Text(
-                      'Música las 24 horas',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ZyloColors.zyloYellow,
+                        boxShadow: ZyloFx.glow(ZyloColors.zyloYellow),
                       ),
+                      child: const Icon(Icons.play_arrow_rounded, size: 36, color: Colors.black),
                     ),
                   ],
                 ),
               ),
-              
-              const Icon(
-                Icons.play_circle_filled,
-                size: 48,
-                color: Colors.white,
-              ),
-              
-              const SizedBox(width: 16),
             ],
           ),
         ),
@@ -282,94 +370,164 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMixTile(BuildContext context, MixItem mix) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+  Widget _buildFeaturedMixCard(BuildContext context, MixItem mix) {
+    return SizedBox(
+      width: 165,
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => _playMix(context, mix),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Cover art
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[800],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: mix.coverUrl != null
-                        ? Image.network(
-                            mix.coverUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildMixPlaceholder(),
-                          )
-                        : _buildMixPlaceholder(),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: mix.coverUrl != null
+                          ? Image.network(
+                              mix.coverUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildMixPlaceholder(),
+                            )
+                          : _buildMixPlaceholder(),
+                    ),
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Color(0xAA000000),
+                              Color(0xFF000000),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: ZyloColors.electricBlue.withAlphaF(0.92),
+                          boxShadow: ZyloFx.glow(ZyloColors.electricBlue),
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                      ),
+                    ),
+                  ],
                 ),
-                
-                const SizedBox(width: 12),
-                
-                // Info del mix
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mix.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        mix.djName,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mix.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            mix.formattedDuration,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            mix.djName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
                           ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          mix.formattedDuration,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDjRow(BuildContext context, {required String djName, required MixItem mix}) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _playMix(context, mix),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    colors: [
+                      ZyloColors.electricBlue.withAlphaF(0.35),
+                      ZyloColors.neonGreen.withAlphaF(0.18),
+                      ZyloColors.zyloYellow.withAlphaF(0.22),
                     ],
                   ),
+                  boxShadow: ZyloFx.glow(ZyloColors.electricBlue, blur: 16),
                 ),
-                
-                // Botón play
-                IconButton(
-                  icon: Icon(
-                    Icons.play_circle_outline,
-                    size: 40,
-                    color: Theme.of(context).colorScheme.primary,
+                child: Center(
+                  child: Text(
+                    djName.isNotEmpty ? djName.trim().substring(0, 1).toUpperCase() : 'D',
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
                   ),
-                  onPressed: () => _playMix(context, mix),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      djName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      mix.title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ZyloColors.panel2,
+                  border: Border.all(color: const Color(0xFF252535)),
+                ),
+                child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+              ),
+            ],
           ),
         ),
       ),
@@ -379,14 +537,7 @@ class HomeScreen extends StatelessWidget {
   Widget _buildMixPlaceholder() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.deepPurple.shade600,
-            Colors.deepPurple.shade900,
-          ],
-        ),
+        gradient: ZyloFx.neonSheen(opacity: 0.9),
       ),
       child: const Icon(
         Icons.music_note,

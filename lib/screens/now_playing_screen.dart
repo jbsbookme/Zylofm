@@ -1,9 +1,10 @@
-/// NowPlaying Screen - Pantalla completa del reproductor
-/// Muestra controles completos, artwork grande y progreso
+// NowPlaying Screen - Pantalla completa del reproductor
+// Muestra controles completos, artwork grande y progreso
 
 import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import '../audio/zylo_audio_handler.dart';
+import '../theme/zylo_theme.dart';
 
 class NowPlayingScreen extends StatelessWidget {
   final ZyloAudioHandler audioHandler;
@@ -13,7 +14,7 @@ class NowPlayingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: ZyloColors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -26,7 +27,7 @@ class NowPlayingScreen extends StatelessWidget {
           builder: (context, snapshot) {
             final type = snapshot.data ?? ZyloContentType.none;
             return Text(
-              type == ZyloContentType.radio ? 'Radio en Vivo' : 'Reproduciendo',
+              type == ZyloContentType.radio ? 'Radio ZyloFM' : 'Ahora Suena',
               style: const TextStyle(fontSize: 16),
             );
           },
@@ -34,43 +35,46 @@ class NowPlayingScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const Spacer(),
-              
-              // Cover art grande
-              _buildLargeCoverArt(),
-              
-              const SizedBox(height: 32),
-              
-              // Info del track
-              _buildTrackInfo(),
-              
-              const SizedBox(height: 24),
-              
-              // Indicador de estado
-              _buildStateIndicator(),
-              
-              const SizedBox(height: 16),
-              
-              // Barra de progreso (solo para mixes)
-              _buildProgressBar(),
-              
-              const SizedBox(height: 24),
-              
-              // Controles principales
-              _buildMainControls(),
-              
-              const SizedBox(height: 16),
-              
-              // Botón stop
-              _buildStopButton(context),
-              
-              const Spacer(),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.65),
+                      radius: 1.05,
+                      colors: [
+                        ZyloColors.electricBlue.withAlphaF(0.14),
+                        ZyloColors.neonGreen.withAlphaF(0.08),
+                        ZyloColors.black,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  _buildLargeCoverArt(),
+                  const SizedBox(height: 26),
+                  _buildTrackInfo(),
+                  const SizedBox(height: 18),
+                  _buildStateIndicator(),
+                  const SizedBox(height: 14),
+                  _buildProgressBar(),
+                  const SizedBox(height: 18),
+                  _buildMainControls(),
+                  const SizedBox(height: 10),
+                  _buildStopButton(context),
+                  const Spacer(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -81,22 +85,26 @@ class NowPlayingScreen extends StatelessWidget {
       stream: audioHandler.mediaItem,
       builder: (context, snapshot) {
         final mediaItem = snapshot.data;
-        
-        return Container(
-          width: 300,
-          height: 300,
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          width: 320,
+          height: 320,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(26),
             boxShadow: [
+              ...ZyloFx.glow(ZyloColors.electricBlue, blur: 34),
+              ...ZyloFx.glow(ZyloColors.zyloYellow, blur: 28),
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 30,
-                offset: const Offset(0, 15),
+                color: Colors.black.withAlphaF(0.65),
+                blurRadius: 40,
+                offset: const Offset(0, 22),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(26),
             child: mediaItem?.artUri != null
                 ? Image.network(
                     mediaItem!.artUri.toString(),
@@ -113,14 +121,7 @@ class NowPlayingScreen extends StatelessWidget {
   Widget _buildPlaceholderCover() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.deepPurple.shade700,
-            Colors.deepPurple.shade900,
-          ],
-        ),
+        gradient: ZyloFx.neonSheen(opacity: 1),
       ),
       child: const Icon(
         Icons.music_note,
@@ -163,13 +164,14 @@ class NowPlayingScreen extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(4),
+                      color: ZyloColors.liveRed.withAlphaF(0.18),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: ZyloColors.liveRed.withAlphaF(0.35)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.circle, color: Colors.white, size: 8),
+                        Icon(Icons.circle, color: ZyloColors.liveRed, size: 8),
                         SizedBox(width: 4),
                         Text(
                           'EN VIVO',
@@ -187,9 +189,9 @@ class NowPlayingScreen extends StatelessWidget {
                 Flexible(
                   child: Text(
                     mediaItem?.artist ?? 'Artista desconocido',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: Colors.white70,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -215,16 +217,16 @@ class NowPlayingScreen extends StatelessWidget {
         
         switch (state) {
           case ZyloPlayerState.loading:
-            statusText = 'Cargando...';
-            statusColor = Colors.amber;
+            statusText = 'Conectando…';
+            statusColor = ZyloColors.zyloYellow;
             break;
           case ZyloPlayerState.buffering:
-            statusText = 'Buffering...';
-            statusColor = Colors.orange;
+            statusText = 'Cargando…';
+            statusColor = ZyloColors.electricBlue;
             break;
           case ZyloPlayerState.error:
             statusText = 'Error de reproducción';
-            statusColor = Colors.red;
+            statusColor = const Color(0xFFFF4D4D);
             break;
           default:
             break;
@@ -235,8 +237,9 @@ class NowPlayingScreen extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: statusColor?.withOpacity(0.2),
+            color: statusColor?.withAlphaF(0.2),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusColor!.withAlphaF(0.28)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -249,7 +252,7 @@ class NowPlayingScreen extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               if (state == ZyloPlayerState.error)
-                const Icon(Icons.error_outline, size: 14, color: Colors.red),
+                const Icon(Icons.error_outline, size: 14, color: Color(0xFFFF4D4D)),
               const SizedBox(width: 6),
               Text(
                 statusText,
@@ -279,22 +282,20 @@ class NowPlayingScreen extends StatelessWidget {
             return StreamBuilder<Duration>(
               stream: audioHandler.durationStream,
               builder: (context, durSnapshot) {
-                return StreamBuilder<Duration>(
-                  stream: audioHandler.bufferedPositionStream,
-                  builder: (context, bufSnapshot) {
-                    final position = posSnapshot.data ?? Duration.zero;
-                    final duration = durSnapshot.data ?? Duration.zero;
-                    final buffered = bufSnapshot.data ?? Duration.zero;
-                    
-                    return Column(
-                      children: [
+                final position = posSnapshot.data ?? Duration.zero;
+                final duration = durSnapshot.data ?? Duration.zero;
+
+                return Column(
+                  children: [
                         // Barra de progreso
                         SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            trackHeight: 4,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
-                            ),
+                            trackHeight: 3,
+                            activeTrackColor: ZyloColors.zyloYellow,
+                            inactiveTrackColor: const Color(0xFF2A2A36),
+                            thumbColor: ZyloColors.zyloYellow,
+                            overlayColor: ZyloColors.zyloYellow.withAlphaF(0.12),
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                           ),
                           child: Slider(
                             value: duration.inMilliseconds > 0
@@ -321,28 +322,22 @@ class NowPlayingScreen extends StatelessWidget {
                             children: [
                               Text(
                                 _formatDuration(position),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Colors.white60,
                                 ),
                               ),
                               Text(
                                 _formatDuration(duration),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Colors.white60,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    );
-                  },
+                  ],
                 );
               },
             );
@@ -375,25 +370,28 @@ class NowPlayingScreen extends StatelessWidget {
                   icon: const Icon(Icons.replay_10, size: 36),
                   onPressed: isLive ? null : () => audioHandler.skipBack15(),
                   color: isLive 
-                      ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)
-                      : null,
+                      ? Colors.white24
+                      : Colors.white70,
                 ),
                 
                 const SizedBox(width: 16),
                 
                 // Play/Pause button grande
-                Container(
-                  width: 72,
-                  height: 72,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  width: 84,
+                  height: 84,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue,
+                    boxShadow: ZyloFx.glow(isPlaying ? ZyloColors.zyloYellow : ZyloColors.electricBlue, blur: 28),
                   ),
                   child: isLoading
                       ? const Center(
                           child: SizedBox(
-                            width: 32,
-                            height: 32,
+                            width: 34,
+                            height: 34,
                             child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 3,
@@ -401,12 +399,16 @@ class NowPlayingScreen extends StatelessWidget {
                           ),
                         )
                       : IconButton(
-                          icon: Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 42,
-                            color: Theme.of(context).colorScheme.onPrimary,
+                          icon: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 160),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeOut,
+                            child: Icon(
+                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              key: ValueKey<bool>(isPlaying),
+                              size: 44,
+                              color: isPlaying ? Colors.black : Colors.white,
+                            ),
                           ),
                           onPressed: () {
                             if (isPlaying) {
@@ -425,8 +427,8 @@ class NowPlayingScreen extends StatelessWidget {
                   icon: const Icon(Icons.forward_10, size: 36),
                   onPressed: isLive ? null : () => audioHandler.skipForward15(),
                   color: isLive 
-                      ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)
-                      : null,
+                      ? Colors.white24
+                      : Colors.white70,
                 ),
               ],
             );
@@ -445,7 +447,7 @@ class NowPlayingScreen extends StatelessWidget {
         Navigator.pop(context);
       },
       style: TextButton.styleFrom(
-        foregroundColor: Theme.of(context).colorScheme.error,
+        foregroundColor: Colors.white70,
       ),
     );
   }
