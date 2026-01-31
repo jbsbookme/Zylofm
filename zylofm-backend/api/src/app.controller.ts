@@ -5,6 +5,14 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get('health')
+  health() {
+    return {
+      status: 'ok',
+      service: 'zylofm-backend',
+    };
+  }
+
   @Get()
   getHello(): string {
     return this.appService.getHello();
