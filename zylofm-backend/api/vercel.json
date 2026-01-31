@@ -1,16 +1,13 @@
 {
-  "version": 2,
-  "buildCommand": "prisma generate && prisma migrate deploy",
-  "builds": [
-    {
-      "src": "src/vercel.ts",
-      "use": "@vercel/node"
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs20.x"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "src/vercel.ts"
+      "source": "/health",
+      "destination": "/api/health"
     }
   ]
 }
