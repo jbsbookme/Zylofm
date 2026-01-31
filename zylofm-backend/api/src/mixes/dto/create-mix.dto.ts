@@ -1,10 +1,9 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { MixVisibility } from '@prisma/client';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * CreateMixDto (PASO 8.4)
  *
- * Creates a mix in DRAFT.
+ * Legacy DTO (metadata-only).
  */
 export class CreateMixDto {
   @IsString()
@@ -15,8 +14,4 @@ export class CreateMixDto {
   @IsString()
   @MaxLength(1200)
   description?: string;
-
-  @IsOptional()
-  @IsEnum(MixVisibility)
-  visibility?: MixVisibility;
 }

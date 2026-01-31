@@ -61,6 +61,42 @@ class ZyloAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _initializeListeners();
   }
 
+  /// Reproduce una URL directa (mp3/wav/HLS) sin depender de modelos.
+  Future<void> playFromUrl(
+    String url, {
+    String title = 'Zylo Assistant',
+    String artist = 'ZyloFM',
+    String? coverUrl,
+  }) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+
+    await _ensureAudioSessionActive();
+    _playerState.add(ZyloPlayerState.loading);
+    _contentType.add(ZyloContentType.mix);
+
+    mediaItem.add(MediaItem(
+      id: 'assistant_url',
+      title: title,
+      artist: artist,
+      album: 'Assistant',
+      artUri: coverUrl != null ? Uri.parse(coverUrl) : null,
+      extras: {
+        'type': 'assistant',
+        'url': trimmed,
+      },
+    ));
+
+    try {
+      await _player.setUrl(trimmed);
+      await _player.play();
+    } catch (e) {
+      _playerState.add(ZyloPlayerState.error);
+      if (kDebugMode) debugPrint('Error al reproducir URL: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _ensureAudioSessionConfigured() {
     return _audioSessionConfigured ??= _configureAudioSession();
   }

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <radialGradient id="g1" cx="30%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#fb7185" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="75%" cy="70%" r="70%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .8 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#g1)"/>
+  <rect width="1200" height="800" fill="url(#g2)"/>
+
+  <g filter="url(#glow)" opacity="0.95">
+    <path d="M600 610c-165-105-300-220-300-360 0-92 68-160 160-160 58 0 110 30 140 78 30-48 82-78 140-78 92 0 160 68 160 160 0 140-135 255-300 360z" fill="#ffffff" fill-opacity="0.18"/>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui" fill="#e5e7eb">
+    <text x="64" y="688" font-size="60" font-weight="800" letter-spacing="-0.02em">Bachata Love</text>
+    <text x="64" y="744" font-size="26" fill="#cbd5e1" fill-opacity="0.9">ZyloFM • Featured Playlist</text>
+  </g>
+</svg>

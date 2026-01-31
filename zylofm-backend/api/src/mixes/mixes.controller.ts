@@ -3,91 +3,98 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
   Post,
   Request,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { JwtPayload } from '../auth/jwt.strategy';
+import { Role } from '../common/types';
 import { Roles } from '../common/roles';
 import { RolesGuard } from '../common/roles.guard';
-import { CreateMixDto } from './dto/create-mix.dto';
-import { UpdateMixDto } from './dto/update-mix.dto';
+import { ApproveMixDto } from './dto/approve-mix.dto';
+import { UploadMixDto } from './dto/upload-mix.dto';
 import { MixesService } from './mixes.service';
 
 /**
- * MixesController (PASO 8.4)
+ * MixesController (PASO 1)
  *
- * DJ protected:
- * - POST  /mixes            -> create DRAFT
- * - PATCH /mixes/:id        -> edit metadata
- * - POST  /mixes/:id/publish -> publish (requires approved DJ)
- * - GET   /mixes/me         -> list my mixes
- *
- * Public:
- * - GET /mixes              -> only PUBLISHED + PUBLIC
- * - GET /mixes/:id          -> PUBLISHED + (PUBLIC or UNLISTED)
+ * Required endpoints:
+ * - POST   /mixes/upload
+ * - GET    /mixes/pending
+ * - POST   /mixes/approve/:id
+ * - GET    /mixes/public
+ * - GET    /dj/:id/mixes
  */
 @Controller()
 export class MixesController {
   constructor(private readonly mixes: MixesService) {}
 
-  // --- DJ endpoints (protected) ---
-
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.DJ)
-  @Post('mixes')
-  create(@Request() req: { user: JwtPayload }, @Body() dto: CreateMixDto) {
-    return this.mixes.createDraft({
-      user: req.user,
-      title: dto.title,
-      description: dto.description,
-      visibility: dto.visibility,
-    });
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.DJ)
-  @Patch('mixes/:id')
-  update(
+  @Roles(Role.DJ, Role.ADMIN)
+  @Post('mixes/upload')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'audio', maxCount: 1 },
+      { name: 'cover', maxCount: 1 },
+    ]),
+  )
+  upload(
     @Request() req: { user: JwtPayload },
-    @Param('id') id: string,
-    @Body() dto: UpdateMixDto,
+    @Body() dto: UploadMixDto,
+    @UploadedFiles()
+    files: {
+      audio?: Express.Multer.File[];
+      cover?: Express.Multer.File[];
+    },
   ) {
-    return this.mixes.updateMetadata({
+    return this.mixes.upload({
       user: req.user,
-      id,
       title: dto.title,
+      djId: dto.djId,
       description: dto.description,
-      visibility: dto.visibility,
+      genre: dto.genre,
+      isClean: dto.isClean,
+      audio: files.audio?.[0],
+      cover: files.cover?.[0],
     });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.DJ)
-  @Post('mixes/:id/publish')
-  publish(@Request() req: { user: JwtPayload }, @Param('id') id: string) {
-    return this.mixes.publish({ user: req.user, id });
+  @Roles(Role.ADMIN)
+  @Get('mixes/pending')
+  pending() {
+    return this.mixes.listPending();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.DJ)
-  @Get('mixes/me')
-  me(@Request() req: { user: JwtPayload }) {
-    return this.mixes.listMine(req.user);
+  @Roles(Role.ADMIN)
+  @Post('mixes/approve/:id')
+  approveOrReject(@Param('id') id: string, @Body() dto: ApproveMixDto) {
+    return this.mixes.adminSetStatus(id, dto.status ?? 'approved');
   }
 
-  // --- Public endpoints ---
-
-  @Get('mixes')
+  @Get('mixes/public')
   listPublic() {
-    return this.mixes.listPublic();
+    return this.mixes.listPublicApproved();
   }
 
-  @Get('mixes/:id')
-  getPublic(@Param('id') id: string) {
-    return this.mixes.getPublicById(id);
+  // Alias (backwards compatibility)
+  @Get('mixes')
+  listPublicAlias() {
+    return this.mixes.listPublicApproved();
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('dj/:id/mixes')
+  listDjMixes(
+    @Param('id') djId: string,
+    @Request() req: { user?: JwtPayload },
+  ) {
+    return this.mixes.listForDj({ djId, viewer: req.user });
   }
 }

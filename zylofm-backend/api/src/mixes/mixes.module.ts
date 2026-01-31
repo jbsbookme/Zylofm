@@ -10,5 +10,6 @@ import { MixesService } from './mixes.service';
   imports: [AuthModule],
   controllers: [MixesController],
   providers: [MixesService],
+  exports: [MixesService],
 })
 export class MixesModule {}

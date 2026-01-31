@@ -20,16 +20,18 @@ enum Role {
   LISTENER
 }
 
-// Mix lifecycle.
-enum MixStatus {
-  DRAFT
-  PUBLISHED
-  TAKEDOWN
+// DJ lifecycle.
+enum DjStatus {
+  PENDING
+  APPROVED
+  BLOCKED
 }
 
-enum MixVisibility {
-  PUBLIC
-  UNLISTED
+// Mix lifecycle (PASO 1).
+enum MixStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -38,7 +40,6 @@ model User {
   passwordHash String
   role         Role       @default(LISTENER)
   djProfile    DjProfile?
-  mixes        Mix[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -53,11 +54,12 @@ model DjProfile {
   bio         String  @default("")
   location    String?
 
-  // PASO 8.4: DJs must be approved to publish mixes.
-  approved Boolean @default(false)
+  status DjStatus @default(PENDING)
 
   // Postgres supports string arrays; keep it lightweight.
   genres String[]
+
+  mixes Mix[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -68,15 +70,39 @@ model Mix {
   title       String
   description String        @default("")
 
-  // Owner of this mix (must be a DJ user).
-  djUserId String
-  djUser   User          @relation(fields: [djUserId], references: [id], onDelete: Cascade)
+  genre    String @default("")
+  audioUrl String
+  coverUrl String
 
-  status     MixStatus     @default(DRAFT)
-  visibility MixVisibility @default(PUBLIC)
+  isClean Boolean @default(true)
+
+  // Owner of this mix (a DJ profile).
+  djId String
+  dj   DjProfile @relation(fields: [djId], references: [id], onDelete: Cascade)
+
+  status MixStatus @default(PENDING)
 
   createdAt DateTime @default(now())
 
-  @@index([djUserId])
-  @@index([status, visibility, createdAt])
+  @@index([djId])
+  @@index([status, createdAt])
+}
+
+// PASO 5: Assistant library (hidden catalog of audio clips to play from text queries).
+model AssistantLibraryItem {
+  id String @id @default(cuid())
+
+  title String
+  // A ready-to-play URL (e.g., Cloudinary in folder `zylofm/assistant_library`).
+  audioUrl String
+
+  // Lightweight searchable tags.
+  keywords String[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, updatedAt])
 }

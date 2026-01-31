@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* Hide scrollbars for horizontal carousels (keep scroll functionality). */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes zylo-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.zylo-marquee {
+  display: inline-flex;
+  width: max-content;
+  animation: zylo-marquee 12s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zylo-marquee {
+    animation: none;
+    transform: none;
+  }
+}
+
+:root {
+  --background: #090a12;
+  --foreground: #e8e8f0;
+  --zylo-panel: rgba(10, 11, 16, 0.55);
+  --zylo-border: rgba(255, 255, 255, 0.10);
+  --zylo-accent: #a78bfa; /* violet-300 */
+  --zylo-accent2: #22d3ee; /* cyan-400 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #090a12;
+    --foreground: #e8e8f0;
+  }
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 620px at 16% -12%, rgba(167, 139, 250, 0.26), transparent 58%),
+    radial-gradient(980px 540px at 92% 8%, rgba(34, 211, 238, 0.18), transparent 58%),
+    radial-gradient(900px 520px at 50% 112%, rgba(244, 114, 182, 0.12), transparent 62%),
+    radial-gradient(1100px 700px at 50% 40%, rgba(255, 255, 255, 0.03), transparent 65%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+::selection {
+  background: rgba(167, 139, 250, 0.25);
+}
+
+.zylo-hairline {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.zylo-glow {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 60px -40px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}

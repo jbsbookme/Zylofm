@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { RolesGuard } from '../common/roles.guard';
+import { AdminBootstrapService } from './admin-bootstrap.service';
 
 /**
  * AuthModule (PASO 8.2)
@@ -14,16 +15,18 @@ import { RolesGuard } from '../common/roles.guard';
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: {
-        // Keep it simple and safe; can be tuned later.
-        expiresIn: '7d',
-      },
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: {
+          // Keep it simple and safe; can be tuned later.
+          expiresIn: '7d',
+        },
+      }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RolesGuard],
+  providers: [AuthService, JwtStrategy, RolesGuard, AdminBootstrapService],
   exports: [AuthService, RolesGuard],
 })
 export class AuthModule {}

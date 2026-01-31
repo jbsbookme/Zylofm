@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Request, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Role } from '../common/types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayload } from '../auth/jwt.strategy';
 import { Roles } from '../common/roles';
 import { RolesGuard } from '../common/roles.guard';
+import { CreateDjProfileDto } from './dto/create-dj-profile.dto';
 import { UpdateDjMeDto } from './dto/update-dj-me.dto';
 import { DjService } from './dj.service';
 
@@ -19,6 +20,24 @@ import { DjService } from './dj.service';
 @Controller('dj')
 export class DjController {
   constructor(private readonly djs: DjService) {}
+
+  // PASO 9.1: DJ onboarding.
+  // After calling this, re-login to get a token with role=DJ.
+  @UseGuards(JwtAuthGuard)
+  @Post('me')
+  createMe(@Request() req: { user: JwtPayload }, @Body() dto: CreateDjProfileDto) {
+    const displayName = dto.displayName.trim();
+    const bio = dto.bio?.trim();
+    const location = dto.location?.trim();
+    const genres = dto.genres?.map((g) => g.trim()).filter((g) => g.length > 0);
+
+    return this.djs.createMe(req.user, {
+      displayName,
+      bio,
+      location,
+      genres,
+    });
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.DJ)

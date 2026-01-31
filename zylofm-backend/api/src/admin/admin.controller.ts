@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '../common/types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/roles';
 import { RolesGuard } from '../common/roles.guard';

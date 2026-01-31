@@ -4,11 +4,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { DjStatus, Role } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type AuthUser = Pick<User, 'id' | 'email' | 'role'>;
+export type AuthUser = { id: string; email: string; role: Role };
 
 /**
  * AuthService (PASO 8.2)
@@ -23,8 +23,8 @@ export type AuthUser = Pick<User, 'id' | 'email' | 'role'>;
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async register(params: {
@@ -35,9 +35,7 @@ export class AuthService {
     const email = params.email.trim().toLowerCase();
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new ConflictException('Email already registered');
-    }
+    if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(params.password, 10);
 
@@ -50,41 +48,40 @@ export class AuthService {
       finalRole = Role.LISTENER;
     }
 
-    const user = await this.prisma.user.create({
+    const created = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
-        role: finalRole,
-        djProfile: params.displayName
-          ? {
-              create: {
-                displayName: params.displayName,
-                bio: '',
-                genres: [],
-              },
-            }
-          : undefined,
+        role: finalRole as any,
+        djProfile:
+          finalRole === Role.DJ
+            ? {
+                create: {
+                  displayName: params.displayName!.trim(),
+                  bio: '',
+                  location: null,
+                  genres: [],
+                  status: DjStatus.PENDING as any,
+                },
+              }
+            : undefined,
       },
       select: { id: true, email: true, role: true },
     });
 
-    return this.issueToken(user);
+    return this.issueToken({ id: created.id, email: created.email, role: created.role as any });
   }
 
   async login(params: { email: string; password: string }) {
     const email = params.email.trim().toLowerCase();
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      select: { id: true, email: true, role: true, passwordHash: true },
-    });
-
+    const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(params.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    return this.issueToken({ id: user.id, email: user.email, role: user.role });
+    return this.issueToken({ id: user.id, email: user.email, role: user.role as any });
   }
 
   issueToken(user: AuthUser) {

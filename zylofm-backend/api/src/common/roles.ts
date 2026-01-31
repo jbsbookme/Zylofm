@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from './types';
 
 /**
  * Roles decorator used by RolesGuard.

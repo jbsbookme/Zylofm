@@ -95,6 +95,12 @@ La app consume contenido *admin-driven* desde un JSON controlado:
 
 Guía completa: ver `ADMIN_CONTENT.md`.
 
+## Textos y documentación (interno)
+
+- Google Play (descripción, privacidad, permisos): `docs/google-play-store.md`
+- Onboarding + mensajes (DJs/Barberos/Usuarios): `docs/onboarding-and-messages.md`
+- Mini README del Admin (subir música, aprobar DJs): `docs/admin-mini-readme.md`
+
 ## Configuración de Android
 
 El `AndroidManifest.xml` incluye:

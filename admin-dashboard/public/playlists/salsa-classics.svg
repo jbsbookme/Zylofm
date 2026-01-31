@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <radialGradient id="r" cx="50%" cy="40%" r="85%">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
+      <stop offset="35%" stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="70%" stop-color="#a78bfa" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#r)"/>
+
+  <g opacity="0.65" fill="#ffffff">
+    <path d="M270 510c120-120 240-120 360 0 120 120 240 120 360 0" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="18"/>
+    <path d="M250 380c140-140 280-140 420 0 140 140 280 140 420 0" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="14"/>
+  </g>
+
+  <g fill="#e5e7eb" font-family="ui-sans-serif, system-ui">
+    <text x="64" y="688" font-size="60" font-weight="800" letter-spacing="-0.02em">Salsa Classics</text>
+    <text x="64" y="744" font-size="26" fill="#cbd5e1" fill-opacity="0.9">ZyloFM • Featured Playlist</text>
+  </g>
+</svg>

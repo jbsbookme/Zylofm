@@ -3,12 +3,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../api/zylo_api.dart';
+import '../api/zylo_api_config.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../content/admin_content_models.dart';
-import '../content/admin_content_repository.dart';
+import '../content/backend_content_repository.dart';
+import '../services/voice_assistant_service.dart';
+import '../ui/assistant/assistant_input.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/zylo_backdrop.dart';
 import 'dj_profile_screen.dart';
+import 'dj_registration_screen.dart';
+import 'admin_panel_screen.dart';
 import 'now_playing_screen.dart';
 import '../theme/zylo_theme.dart';
 
@@ -23,8 +29,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<AdminContent> _contentFuture;
+  late Future<List<ApiAssistantLibraryItem>> _assistantLibraryFuture;
   Future<bool>? _radioOnlineFuture;
   String? _radioUrlForProbe;
+  final VoiceAssistantService _voiceAssistantService = VoiceAssistantService();
+  bool _voiceBusy = false;
 
   ZyloAudioHandler get audioHandler => widget.audioHandler;
 
@@ -36,10 +45,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reloadContent() {
     setState(() {
-      _contentFuture = const AdminContentRepository().load();
+      _contentFuture = const BackendContentRepository(baseUrl: zyloApiBaseUrl).load();
+      _assistantLibraryFuture = ZyloApi(baseUrl: zyloApiBaseUrl).listAssistantLibraryPublic().catchError((_) => const <ApiAssistantLibraryItem>[]);
       _radioOnlineFuture = null;
       _radioUrlForProbe = null;
     });
+  }
+
+  (String? artist, String? genre) _extractMetaFromKeywords(List<String> keywords) {
+    String? artist;
+    String? genre;
+    for (final k in keywords) {
+      final v = k.trim();
+      final lc = v.toLowerCase();
+      if (artist == null && lc.startsWith('artist:')) {
+        final value = v.substring('artist:'.length).trim();
+        if (value.isNotEmpty) artist = value;
+      }
+      if (genre == null && lc.startsWith('genre:')) {
+        final value = v.substring('genre:'.length).trim();
+        if (value.isNotEmpty) genre = value;
+      }
+      if (artist != null && genre != null) break;
+    }
+    return (artist, genre);
   }
 
   Future<bool> _probeRadioOnline(String url) async {
@@ -83,6 +112,56 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleVoiceAssistant() async {
+    if (_voiceBusy) return;
+    setState(() => _voiceBusy = true);
+
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escuchando...')),
+      );
+
+      final query = await _voiceAssistantService.listenOnce();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (query == null || query.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se detectó voz. Intenta de nuevo.')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Buscando: "$query"')),
+      );
+
+      final audioUrl = await const BackendContentRepository(baseUrl: zyloApiBaseUrl).assistantPlay(query);
+      if (!mounted) return;
+
+      if (audioUrl == null) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No encontré un audio para esa frase.')),
+        );
+        return;
+      }
+
+      await audioHandler.playFromUrl(audioUrl, title: query, artist: 'Assistant');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de voz: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _voiceBusy = false);
+    }
   }
 
   @override
@@ -132,6 +211,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                         child: _buildHeader(context),
                       ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: AssistantInput(audioHandler: audioHandler),
                     ),
                   ),
 
@@ -187,6 +273,93 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+                  // Biblioteca (Assistant Library) - canciones sueltas subidas por admin
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: _buildSectionHeader(context, title: 'Biblioteca'),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: FutureBuilder<List<ApiAssistantLibraryItem>>(
+                      future: _assistantLibraryFuture,
+                      builder: (context, libSnap) {
+                        if (libSnap.connectionState != ConnectionState.done) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                            child: _buildEmptyState(
+                              loading: true,
+                              icon: Icons.library_music_outlined,
+                              text: 'Cargando biblioteca…',
+                            ),
+                          );
+                        }
+
+                        final tracks = libSnap.data ?? const <ApiAssistantLibraryItem>[];
+                        if (tracks.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                            child: _buildEmptyState(
+                              loading: false,
+                              icon: Icons.library_music_outlined,
+                              text: 'Biblioteca vacía (se llena desde el Admin Dashboard).',
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemBuilder: (context, index) {
+                            final t = tracks[index];
+                            final meta = _extractMetaFromKeywords(t.keywords);
+                            final subtitleParts = <String>[];
+                            if (meta.$1 != null && meta.$1!.trim().isNotEmpty) subtitleParts.add(meta.$1!.trim());
+                            if (meta.$2 != null && meta.$2!.trim().isNotEmpty) subtitleParts.add(meta.$2!.trim());
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: ZyloColors.panel.withAlphaF(0.55),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFF1C1C28)),
+                              ),
+                              child: ListTile(
+                                title: Text(
+                                  t.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                                ),
+                                subtitle: Text(
+                                  subtitleParts.isEmpty ? '—' : subtitleParts.join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white60),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.play_circle_fill_rounded),
+                                  onPressed: () async {
+                                    if (t.audioUrl.trim().isEmpty) return;
+                                    await audioHandler.playFromUrl(
+                                      t.audioUrl,
+                                      title: t.title,
+                                      artist: meta.$1 ?? 'ZyloFM',
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemCount: tracks.length,
+                        );
+                      },
+                    ),
+                  ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
@@ -321,6 +494,64 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: _voiceBusy ? null : _handleVoiceAssistant,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: ZyloColors.panel,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF1C1C28)),
+            ),
+            child: _voiceBusy
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.mic_rounded, color: Colors.white70, size: 20),
+          ),
+        ),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DjRegistrationScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: ZyloColors.panel,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF1C1C28)),
+            ),
+            child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white70, size: 20),
+          ),
+        ),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: ZyloColors.panel,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF1C1C28)),
+            ),
+            child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white70, size: 20),
           ),
         ),
       ],

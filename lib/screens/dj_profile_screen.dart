@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../api/zylo_api_config.dart';
 import '../audio/zylo_audio_handler.dart';
 import '../content/admin_content_models.dart';
-import '../content/admin_content_repository.dart';
+import '../content/backend_content_repository.dart';
 import '../theme/zylo_theme.dart';
 import 'now_playing_screen.dart';
+import 'upload_mix_screen.dart';
 
 class DJProfileScreen extends StatefulWidget {
   final ZyloAudioHandler audioHandler;
@@ -34,7 +36,7 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
   void initState() {
     super.initState();
 
-    _contentFuture = const AdminContentRepository().load();
+    _contentFuture = const BackendContentRepository(baseUrl: zyloApiBaseUrl).load();
 
     _enterController = AnimationController(
       vsync: this,
@@ -139,6 +141,8 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
                       ),
                       const SizedBox(height: 14),
                       _buildPrimaryActions(context, dj, mixesAll),
+                      const SizedBox(height: 14),
+                      _buildUploadMixCta(context, dj),
                       const SizedBox(height: 14),
                       _buildSectionDivider(),
                       const SizedBox(height: 14),
@@ -555,6 +559,59 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
     );
   }
 
+  Widget _buildUploadMixCta(BuildContext context, AdminDj dj) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: ZyloColors.panel.withAlphaF(0.78),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1C1C28)),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Subir Mix',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Queda en revisión (Admin aprueba).',
+                  style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.25),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => UploadMixScreen(djName: dj.name),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _djRed,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.upload_rounded, size: 18),
+            label: const Text(
+              'SUBIR',
+              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _iconPill({required IconData icon, required String tooltip, required VoidCallback? onTap}) {
     return Tooltip(
       message: tooltip,
@@ -662,6 +719,23 @@ class _DJProfileScreenState extends State<DJProfileScreen> with SingleTickerProv
                             color: Colors.white70,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlphaF(0.35),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: ZyloColors.zyloYellow.withAlphaF(0.22)),
+                        ),
+                        child: const Text(
+                          '✅ Publicado',
+                          style: TextStyle(
+                            color: ZyloColors.zyloYellow,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),

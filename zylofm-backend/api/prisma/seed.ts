@@ -1,6 +1,23 @@
 import 'dotenv/config';
 import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+
+function shouldUseSslForDatabase(connectionString: string): boolean {
+  const envMode = (process.env.PGSSLMODE ?? '').trim().toLowerCase();
+  if (envMode === 'require' || envMode === 'verify-full' || envMode === 'verify-ca') return true;
+
+  try {
+    const url = new URL(connectionString);
+    const sslmode = (url.searchParams.get('sslmode') ?? '').trim().toLowerCase();
+    if (sslmode === 'require' || sslmode === 'verify-full' || sslmode === 'verify-ca') return true;
+  } catch {
+    // ignore
+  }
+
+  return false;
+}
 
 /**
  * Prisma seed (PASO 8.3)
@@ -28,7 +45,18 @@ async function main() {
     throw new Error('ADMIN_PASSWORD too short (min 10 chars).');
   }
 
-  const prisma = new PrismaClient();
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString || connectionString.trim().length === 0) {
+    throw new Error('Missing DATABASE_URL. Set it in .env before running seed.');
+  }
+
+  const useSsl = shouldUseSslForDatabase(connectionString);
+  const pool = new Pool({
+    connectionString,
+    ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+
 
   try {
     const passwordHash = await bcrypt.hash(password, 10);
@@ -52,6 +80,7 @@ async function main() {
     console.log('Seed OK:', admin);
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 

@@ -1,5 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { MixVisibility } from '@prisma/client';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * UpdateMixDto (PASO 8.4)
@@ -16,8 +15,4 @@ export class UpdateMixDto {
   @IsString()
   @MaxLength(1200)
   description?: string;
-
-  @IsOptional()
-  @IsEnum(MixVisibility)
-  visibility?: MixVisibility;
 }

@@ -1,5 +1,5 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { DjStatus, Role } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -12,22 +12,41 @@ import { PrismaService } from '../prisma/prisma.service';
 export class DjService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getMe(user: { sub: string; role: Role }) {
-    if (user.role !== Role.DJ) throw new ForbiddenException('DJ only');
+  async createMe(
+    user: { sub: string; role: Role },
+    params: {
+      displayName: string;
+      bio?: string;
+      location?: string;
+      genres?: string[];
+    },
+  ) {
+    const existing = await this.prisma.djProfile.findUnique({ where: { userId: user.sub } });
+    if (existing) throw new ConflictException('DJ profile already exists');
 
-    const profile = await this.prisma.djProfile.findUnique({
-      where: { userId: user.sub },
-      select: {
-        id: true,
-        displayName: true,
-        bio: true,
-        location: true,
-        genres: true,
-        createdAt: true,
-        updatedAt: true,
+    const u = await this.prisma.user.findUnique({ where: { id: user.sub } });
+    if (!u) throw new NotFoundException('User not found');
+    if ((u.role as any) === Role.ADMIN) throw new ForbiddenException('Admin cannot become DJ');
+
+    const profile = await this.prisma.djProfile.create({
+      data: {
+        userId: user.sub,
+        displayName: params.displayName.trim(),
+        bio: (params.bio ?? '').trim(),
+        location: params.location?.trim() ?? null,
+        genres: params.genres ?? [],
+        status: DjStatus.PENDING as any,
       },
     });
 
+    await this.prisma.user.update({ where: { id: user.sub }, data: { role: Role.DJ as any } });
+    return profile;
+  }
+
+  async getMe(user: { sub: string; role: Role }) {
+    if (user.role !== Role.DJ) throw new ForbiddenException('DJ only');
+
+    const profile = await this.prisma.djProfile.findUnique({ where: { userId: user.sub } });
     if (!profile) throw new NotFoundException('DJ profile not found');
     return profile;
   }
@@ -43,61 +62,30 @@ export class DjService {
   ) {
     if (user.role !== Role.DJ) throw new ForbiddenException('DJ only');
 
-    // Ensure the profile exists first.
-    const existing = await this.prisma.djProfile.findUnique({
-      where: { userId: user.sub },
-      select: { id: true },
-    });
-    if (!existing) throw new NotFoundException('DJ profile not found');
+    const profile = await this.prisma.djProfile.findUnique({ where: { userId: user.sub } });
+    if (!profile) throw new NotFoundException('DJ profile not found');
 
-    const profile = await this.prisma.djProfile.update({
-      where: { userId: user.sub },
+    return this.prisma.djProfile.update({
+      where: { id: profile.id },
       data: {
         displayName: patch.displayName,
         bio: patch.bio,
-        location: patch.location,
+        location: patch.location === undefined ? undefined : patch.location,
         genres: patch.genres,
       },
-      select: {
-        id: true,
-        displayName: true,
-        bio: true,
-        location: true,
-        genres: true,
-        createdAt: true,
-        updatedAt: true,
-      },
     });
-
-    return profile;
   }
 
   async getPublicById(id: string) {
-    const profile = await this.prisma.djProfile.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        displayName: true,
-        bio: true,
-        location: true,
-        genres: true,
-      },
-    });
-
+    const profile = await this.prisma.djProfile.findUnique({ where: { id } });
     if (!profile) throw new NotFoundException('DJ not found');
     return profile;
   }
 
   async listPublic() {
     return this.prisma.djProfile.findMany({
+      where: { status: DjStatus.APPROVED as any },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        displayName: true,
-        bio: true,
-        location: true,
-        genres: true,
-      },
     });
   }
 }
